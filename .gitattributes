@@ -1,0 +1,7 @@
+# для shell‑скриптов всегда LF
+*.sh text eol=lf
+.env
+__pycache__/
+*.pyc
+instance/
+EOF

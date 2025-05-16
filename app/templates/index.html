@@ -1,0 +1,175 @@
+{# templates/index.html #}
+{% extends 'base.html' %}
+
+{% block head %}
+  {{ super() }}
+  <style>
+    /* Общие отступы */
+    .page-container3 {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 20px;
+          margin: 0 auto;
+}
+
+    /* Форма фильтров */
+    #filter-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    #filter-form input,
+    #filter-form select,
+    #filter-form button {
+      padding: 6px 10px;
+      font-size: 1rem;
+    }
+    /* Заглушка, когда нет картинки */
+    .no-image {
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      color: #666;
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 0 10px;
+    }
+    /* Карточки плиткой */
+    #event-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+    }
+    .event-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 calc(20% - 16px);
+    }
+    @media (max-width: 992px) {
+      .event-card { flex: 0 0 calc(33.333% - 16px); }
+    }
+    @media (max-width: 768px) {
+      .event-card { flex: 0 0 calc(50% - 16px); }
+    }
+    @media (max-width: 576px) {
+      .event-card { flex: 0 0 100%; }
+    }
+    .event-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+    }
+    .event-card-body {
+      padding: 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .event-card-body h5 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+    .badges {
+      margin-bottom: 8px;
+    }
+    .badges .badge {
+      margin-right: 6px;
+    }
+    .event-card-footer {
+      padding: 10px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .fav-star, .map-marker {
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+    .priority-badge {
+      background: #ff5722;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="page-container3">
+    <h1>Мероприятия</h1>
+
+    {# ——— Избранное ——— #}
+    {% if current_user and current_user.role == 'participant' %}
+      <button id="favorites-toggle" aria-label="Избранное">⭐</button>
+      <div id="favorites-panel">
+        <div class="panel-header">
+          <h3>Избранное</h3>
+          <button id="favorites-close" aria-label="Закрыть">&times;</button>
+        </div>
+        <div class="panel-body">
+          <section><h4>Мероприятия</h4><ul id="fav-events-list"></ul></section>
+          <section><h4>Сферы</h4><ul id="fav-spheres-list"></ul></section>
+          <section><h4>Типы</h4><ul id="fav-types-list"></ul></section>
+          <section><h4>Организаторы</h4><ul id="fav-organizers-list"></ul></section>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ——— Фильтры ——— #}
+    <div id="filter-form">
+      <input type="text" id="filter-title" placeholder="По названию">
+      <input type="text" id="filter-organizer" placeholder="По организатору">
+      <input type="text" id="filter-city" placeholder="По городу">
+      <select id="filter-sphere">
+        <option value="">Все сферы</option>
+        {% for sphere in event_spheres %}
+          <option value="{{ sphere.name }}">{{ sphere.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="filter-type">
+        <option value="">Все типы</option>
+        {% for et in event_types %}
+          <option value="{{ et.name }}">{{ et.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="filter-format">
+        <option value="">Все форматы</option>
+        <option value="online">Онлайн</option>
+        <option value="offline">Офлайн</option>
+      </select>
+      {% if current_user and current_user.role=='participant' %}
+        <button id="filter-favorites">По избранному</button>
+      {% endif %}
+    </div>
+
+    {# ——— Карта ——— #}
+    <div id="map" style="height:400px; margin-bottom:20px;"></div>
+
+    {# ——— Список плитками ——— #}
+    <div id="event-list"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    var currentUserRole = "{{ current_user.role if current_user else '' }}";
+    var eventsData      = {{ events_json    | safe }};
+    var favoritesData   = {{ favorites_json | safe }};
+  </script>
+  <script src="https://api-maps.yandex.ru/2.1/?apikey={{ map_api_key }}&lang=ru_RU"></script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

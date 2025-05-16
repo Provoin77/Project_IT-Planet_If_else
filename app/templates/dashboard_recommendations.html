@@ -1,0 +1,225 @@
+{# templates/dashboard_recommendations.html #}
+{% extends 'base.html' %}
+
+{% block head %}
+  {{ super() }}
+  <style>
+    .page-container3 {
+      padding: 20px;
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+    }
+    .recommendation-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+    }
+    .event-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 calc(20% - 16px);
+      transition: transform .2s, box-shadow .2s;
+    }
+    @media (max-width: 992px) { .event-card { flex: 0 0 calc(33.333% - 16px); } }
+    @media (max-width: 768px) { .event-card { flex: 0 0 calc(50% - 16px); } }
+    @media (max-width: 576px) { .event-card { flex: 0 0 100%; } }
+    .event-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    .event-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+    }
+    .no-image {
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      color: #666;
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 0 10px;
+    }
+    .event-card-body {
+      padding: 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .event-card-body h5 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+    .event-card-body .date {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .event-card-body .badges {
+      margin-bottom: 8px;
+    }
+    .event-card-body .badges .badge {
+      margin-right: 6px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+    .event-card-body .organizer {
+      margin-top: auto;
+      font-size: 0.9rem;
+      color: #444;
+    }
+    .event-card-footer {
+      padding: 10px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .event-card-footer a,
+    .event-card-footer button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #000;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      transition: background .2s;
+    }
+    .event-card-footer a:hover,
+    .event-card-footer button:hover {
+      background: #444;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="page-container3">
+    <h2 class="mb-4">Рекомендации для вас</h2>
+
+    {% if recommendations %}
+      <div class="recommendation-grid">
+        {% for rec in recommendations %}
+          <div class="event-card">
+            {% if rec.event.image_filename %}
+              <img src="{{ url_for('uploaded_event_image', filename=rec.event.image_filename) }}"
+                   alt="Обложка {{ rec.event.title }}" style="max-width:100%;">
+            {% else %}
+              <div class="no-image">Организатор не загрузил картинку</div>
+            {% endif %}
+
+            <div class="event-card-body">
+              <h5>
+                <a href="{{ url_for('view_event', event_id=rec.event.id) }}">
+                  {{ rec.event.title }}
+                </a>
+                {% if rec.event.priority and rec.event.priority > 0 %}
+                  <span class="priority-badge">P{{ rec.event.priority }}</span>
+                {% endif %}
+              </h5>
+              <div class="date">{{ rec.event.date.strftime('%d.%m.%Y %H:%M') }}</div>
+              <div class="badges">
+                <span class="badge bg-info text-dark">{{ rec.event.event_type }}</span>
+                <span class="badge bg-secondary">{{ rec.event.event_sphere }}</span>
+              </div>
+              <div class="organizer">
+                <strong>Организатор:</strong> {{ rec.event.creator.org_name or '—' }}
+              </div>
+            </div>
+
+            <div class="event-card-footer">
+              {# «Подробнее» #}
+              <a href="{{ url_for('view_event', event_id=rec.event.id) }}">
+                Подробнее
+              </a>
+
+              {# «Записаться/Отписаться» #}
+              {% if current_user and current_user.role == 'participant' %}
+                {# проверяем подписку #}
+                {% set subscribed = false %}
+                {% for sub in current_user.subscriptions %}
+                  {% if sub.event_id == rec.event.id %}
+                    {% set subscribed = true %}
+                  {% endif %}
+                {% endfor %}
+
+                {% if rec.event.filtered_status == 'предстоит' %}
+                  <form class="ajax-subscription"
+                        data-event-id="{{ rec.event.id }}"
+                        method="post"
+                        action="{{ subscribed
+                                  and url_for('unsubscribe', event_id=rec.event.id)
+                                  or url_for('subscribe',   event_id=rec.event.id) }}"
+                        style="display:inline;">
+                    <button type="submit">
+                      {{ subscribed and 'Отписаться' or 'Записаться' }}
+                    </button>
+                  </form>
+                {% elif rec.event.filtered_status == 'проходит' %}
+                  <span style="color: green;">Идёт сейчас</span>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        Пока нет рекомендаций. Попробуйте:
+        <ul class="mb-0">
+          <li>Записаться и посетить мероприятия</li>
+          <li>Добавить типы и сферы в избранное ⭐</li>
+          <li>Уточнить ваш регион в профиле</li>
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    // роль текущего пользователя (если нет — пустая строка)
+    window.currentUserRole   = {{ current_user.role|default('', true)|tojson }};
+    // если нет никаких избранных — пустой массив
+    window.favoritesData     = {{ favorites_json|default([], true)|tojson }};
+    // заготовка под eventsData
+    window.eventsData        = [];
+    // если пользователь не авторизован или подписок нет — пустой массив
+    window.userSubscriptions = {{ (current_user.subscriptions
+                                      | default([], true)
+                                      | map(attribute='event_id')
+                                      | list) | tojson }};
+  </script>
+
+  <script src="https://api-maps.yandex.ru/2.1/?apikey={{ map_api_key }}&lang=ru_RU"></script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.currentUserRole !== 'participant') return;
+
+      document.querySelectorAll('form.ajax-subscription[data-event-id]').forEach(function(form) {
+        var id  = parseInt(form.dataset.eventId, 10);
+        var btn = form.querySelector('button');
+        var sub = window.userSubscriptions.includes(id);
+
+        form.action     = (sub ? '/unsubscribe/' : '/subscribe/') + id;
+        btn.textContent = sub ? 'Отписаться' : 'Записаться';
+      });
+    });
+  </script>
+{% endblock %}
+
+

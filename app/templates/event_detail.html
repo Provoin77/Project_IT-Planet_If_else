@@ -1,0 +1,463 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  {{ super() }}
+  <style>
+
+  /* Секция известных гостей */
+    .personalities {
+      max-width: 1100px;
+      margin: 32px auto 0;
+      padding: 0 20px;
+    }
+    .personalities h3 {
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .personalities ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .personalities li {
+      background: #fffbe6;
+      padding: 12px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      flex: 1 1 200px;
+      color: #444;
+    }
+
+   .detail-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;   /* выровнять колонки по центру */
+      align-items: flex-start;    /* верхнее выравнивание */
+      gap: 20px;
+      max-width: 1100px;          /* ограничиваем максимальную ширину */
+      margin: 40px auto 0;        /* отступ сверху и центр по горизонтали */
+    }
+
+    .detail-info,
+    .detail-map {
+      flex: 1 1 45%;              /* две колонки по ~45% каждая */
+      min-width: 300px;           /* чтобы не сминалось слишком сильно
+                                     на узких экранах */
+    }
+
+    .reviews-section {
+      clear: both;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .reviews-section h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .reviews-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .review-card {
+      background: #fdfdfd;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      color: #444;
+    }
+    .review-header {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #222;
+      margin: 0;
+    }
+    .review-header .rating {
+      margin-left: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #555;
+    }
+    .review-body p {
+      margin: 0;
+      line-height: 1.4;
+    }
+    .review-image {
+      max-width: 100%;
+      border-radius: 4px;
+      margin-top: 12px;
+      align-self: center;
+    }
+  </style>
+{% endblock head %}
+
+
+
+{% block content %}
+  <!-- Контейнер: слева детали, справа карта -->
+  <div id="event-detail" class="detail-container">
+    <!-- Левая колонка: информация о мероприятии -->
+    <div class="detail-info info-card">
+      <div class="info-header event-header">
+        <h2 class="event-title">
+          {{ event.title }}
+          {% if current_user and current_user.role == 'participant' %}
+            <button class="fav-btn">
+              <span class="fav-star"
+                    data-fav-type="event"
+                    data-fav-value="{{ event.id }}"
+                    title="В избранное">★</span>
+            </button>
+          {% endif %}
+        </h2>
+      </div>
+
+      <div class="info-body">
+        <!-- Описание -->
+        <p><strong>Описание:</strong> {{ event.description }}</p>
+
+        <!-- SHARE-buttons -->
+        <div class="share-buttons" style="margin:1em 0;">
+          <a class="btn btn-outline-info"
+             href="https://t.me/share/url?url={{ url_for('view_event', event_id=event.id, _external=True)|urlencode }}&text={{ event.title|urlencode }}"
+             target="_blank">
+            Поделиться в Telegram
+          </a>
+          <button class="btn btn-outline-secondary"
+                  onclick="if(navigator.share){navigator.share({
+                    title: '{{ event.title|e }}',
+                    url: '{{ url_for('view_event', event_id=event.id, _external=True) }}'
+                  });} else { alert('Ваш браузер не поддерживает Web Share API'); }">
+            Поделиться…
+          </button>
+        </div>
+
+               <!-- Организатор -->
+        <p>
+          {% if current_user and current_user.role == 'participant' %}
+            <span class="fav-star"
+                  data-fav-type="organizer"
+                  data-fav-value="{{ event.creator.org_name if event.creator else '' }}"
+                  title="В избранное">★</span>
+          {% endif %}
+          <strong>Организатор:</strong>
+          {% if event.creator %}
+            {{ event.creator.org_name }}
+            {% if current_user and current_user.role == 'participant' %}
+              {% set org_ids = current_user.organizer_subscriptions
+                   | map(attribute='organizer_id')
+                   | list %}
+              {% set is_sub = event.creator.id in org_ids %}
+              <button
+                      class="btn btn-sm btn-{{ 'danger' if is_sub else 'primary' }}"
+                      onclick="toggleOrgSub(this, {{ event.creator.id }}, {{ 'true' if is_sub else 'false' }})">
+                      {{ 'Отписаться' if is_sub else 'Подписаться' }}
+              </button>
+            {% endif %}
+          {% else %}
+            Не указан
+          {% endif %}
+        </p>
+
+
+        <p>
+          {% if current_user and current_user.role == 'participant' %}
+            <span class="fav-star"
+                  data-fav-type="type"
+                  data-fav-value="{{ event.event_type }}"
+                  title="В избранное">★</span>
+          {% endif %}
+          <strong>Тип мероприятия:</strong> {{ event.event_type }}
+        </p>
+
+        <p>
+          {% if current_user and current_user.role == 'participant' %}
+            <span class="fav-star"
+                  data-fav-type="sphere"
+                  data-fav-value="{{ event.event_sphere }}"
+                  title="В избранное">★</span>
+          {% endif %}
+          <strong>Сфера мероприятия:</strong> {{ event.event_sphere }}
+        </p>
+
+        <p>
+          <strong>Формат мероприятия:</strong>
+          {{ event.event_format == 'online' and "Онлайн" or "Офлайн" }}
+        </p>
+
+        <p>
+          <strong>Место проведения:</strong> {{ event.city }}
+          {% if event.event_format == 'offline' and event.address %}
+            , {{ event.address }}
+          {% endif %}
+        </p>
+
+        <p><strong>Дата и время проведения:</strong> {{ event.date.strftime("%d.%m.%Y %H:%M") }}</p>
+        <p><strong>Продолжительность:</strong> {{ event.duration }}</p>
+
+        {% if event.resources %}
+          <p>
+            <strong>Информационные ресурсы:</strong>
+            <a href="{{ event.resources }}" target="_blank">{{ event.resources }}</a>
+          </p>
+        {% endif %}
+
+        <p>
+          <strong>Контакты организатора (почта):</strong>
+          {% if event.creator and event.creator.email %}
+            <a href="mailto:{{ event.creator.email }}">{{ event.creator.email }}</a>
+          {% else %}
+            — не указан
+          {% endif %}
+        </p>
+
+        <p><strong>Статус мероприятия:</strong> {{ event_status }}</p>
+
+        {% if current_user and current_user.role == 'participant' %}
+          {% set now = now or datetime.utcnow() %}
+          {% if event.date < now %}
+            <p class="note-warning">Мероприятие прошло</p>
+          {% else %}
+            <div id="subscription-container">
+              {% set subscribed = false %}
+              {% for sub in current_user.subscriptions %}
+                {% if sub.event_id == event.id %}
+                  {% set subscribed = true %}{% endif %}
+              {% endfor %}
+              {% if subscribed %}
+                <form method="post"
+                      action="{{ url_for('unsubscribe', event_id=event.id) }}"
+                      class="ajax-subscription inline-form"
+                      data-event-id="{{ event.id }}">
+                  <button type="submit" class="btn btn-unsub">Отписаться</button>
+                </form>
+              {% else %}
+                <form method="post"
+                      action="{{ url_for('subscribe', event_id=event.id) }}"
+                      class="ajax-subscription inline-form"
+                      data-event-id="{{ event.id }}">
+                  <button type="submit" class="btn btn-sub">Записаться</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endif %}
+
+        {% if not event.is_approved %}
+          <p class="note-warning">
+            <em>
+              Мероприятие ещё не одобрено модератором и может не отображаться другим пользователям.
+            </em>
+          </p>
+        {% endif %}
+
+        {% if current_user and (current_user.id == event.creator_id or current_user.role == 'moderator') %}
+          <div class="info-footer">
+            {% if current_user.role == 'moderator'
+                   or (current_user.id == event.creator_id and event_status not in ['проходит','прошло']) %}
+              <form method="get"
+                    action="{{ url_for('edit_event', event_id=event.id) }}"
+                    class="inline-form">
+                <button type="submit" class="btn btn-edit">Редактировать</button>
+              </form>
+            {% endif %}
+            {% if current_user.role == 'moderator' %}
+              <form method="post"
+                    action="{{ url_for('delete_event', event_id=event.id) }}"
+                    class="inline-form">
+                <button type="submit" class="btn btn-delete"
+                        onclick="return confirm('Удалить мероприятие «{{ event.title }}»?');">
+                  Удалить
+                </button>
+              </form>
+              {% if not event.is_approved %}
+                <form method="post"
+                      action="{{ url_for('approve_event', event_id=event.id) }}"
+                      class="inline-form">
+                  <button type="submit" class="btn btn-approve">Одобрить</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Правая колонка: карта -->
+    <div class="detail-map">
+      <div id="map"></div>
+    </div>
+
+{# Секция известных гостей #}
+  {% if event.personalities %}
+    <section class="personalities">
+      <h3>Известные гости</h3>
+      <ul>
+        {% for p in event.personalities %}
+          <li>
+            <strong>{{ p.name }}</strong>
+            {% if p.description %}<br><small>{{ p.description }}</small>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+
+<section class="reviews-section">
+  <h2>Отзывы</h2>
+  {% if reviews %}
+    <ul class="reviews-list">
+      {% for rev in reviews %}
+        <li class="review-card">
+          <p class="review-header">
+            {{ rev.author.username }}
+            <span class="rating">Оценка: {{ rev.rating }}/10</span>
+          </p>
+          <div class="review-body">
+            <p>{{ rev.comment }}</p>
+            {% if rev.image_filename %}
+              <img class="review-image"
+                   src="{{ url_for('uploaded_review_image', filename=rev.image_filename) }}"
+                   alt="Фото из отзыва">
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Пока нет одобренных отзывов.</p>
+  {% endif %}
+</section>
+     </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- 1) Глобальные переменные -->
+  <script>
+    window.currentUserRole   = {{ (current_user and current_user.role) | tojson }};
+    var favoritesData        = {{ favorites_json | safe }};
+    window.eventsData = [
+    {{ {
+         "id":        event.id,
+         "title":     event.title,
+         "lat":       event.lat,
+         "lon":       event.lon,
+         "address":   event.address or "",
+         "city":      event.city,
+         "date":      event.date.strftime("%Y-%m-%d %H:%M:%S"),
+         "status":    event_status,
+         "organizer": event.creator.org_name if event.creator else None,
+         "event_format": event.event_format,
+         "subscribed":   (event.id in user_subs)
+       }|tojson }}
+  ];
+
+    {% if current_user %}
+      {% set user_subs = current_user.subscriptions | map(attribute='event_id') | list %}
+    {% else %}
+      {% set user_subs = [] %}
+    {% endif %}
+    window.userSubscriptions = {{ user_subs | tojson }};
+  </script>
+
+  <!-- 2) Логируем ключ-значения из event -->
+  <script>
+    console.log('Event debug:', {
+      id:       {{ event.id }},
+      title:    {{ event.title|tojson }},
+      lat:      {{ event.lat or 'null' }},
+      lon:      {{ event.lon or 'null' }},
+      address:  {{ event.address|default('', true)|tojson }},
+      city:     {{ event.city|tojson }},
+      date:     {{ event.date.strftime("%Y-%m-%d %H:%M:%S")|tojson }}
+    });
+  </script>
+
+  <!-- 3) Яндекс.Карты API -->
+  <script src="https://api-maps.yandex.ru/2.1/?apikey={{ map_api_key }}&lang=ru_RU"></script>
+
+  <!-- 4) Основной скрипт приложения -->
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+  <!-- 5) Инициализация карты с балуном -->
+  <script>
+    ymaps.ready(function() {
+      var lat = {{ event.lat or 'null' }};
+      var lon = {{ event.lon or 'null' }};
+      var center = [55.751244, 37.618423];
+      var zoom   = 10;
+      if (lat !== null && lon !== null) {
+        center = [lat, lon];
+        zoom   = 14;
+      }
+      var myMap = new ymaps.Map('map', {
+        center: center,
+        zoom: zoom,
+        controls: ['zoomControl','fullscreenControl']
+      });
+      if (lat !== null && lon !== null) {
+        var placemark = new ymaps.Placemark(center, {
+          balloonContentHeader: {{ event.title|tojson }},
+          balloonContentBody:   {{ event.address|default('', true)|tojson }}
+        }, {
+          preset: 'islands#redDotIcon',
+          openEmptyBalloon: true
+        });
+        myMap.geoObjects.add(placemark);
+        placemark.balloon.open();
+      }
+    });
+  </script>
+
+  <!-- 6) Избранное, подписки и уведомления -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.currentUserRole === 'participant') {
+        if (Array.isArray(window.favoritesData)) {
+          renderPanel();
+          initFavorites();
+        }
+        document.querySelectorAll('form.ajax-subscription[data-event-id]')
+          .forEach(function(form) {
+            var id  = +form.dataset.eventId;
+            var btn = form.querySelector('button');
+            var sub = window.userSubscriptions.includes(id);
+            form.action     = sub ? '/unsubscribe/' + id : '/subscribe/' + id;
+            btn.textContent = sub ? 'Отписаться' : 'Записаться';
+          });
+      }
+      window.toggleOrgSub = function(btn, orgId, currentlySubscribed) {
+        var action = currentlySubscribed ? 'unsubscribe' : 'subscribe';
+        fetch('/participant/organizers/' + orgId + '/' + action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(json => {
+          if (!json.success) return alert('Не удалось выполнить действие');
+          btn.textContent = currentlySubscribed ? 'Подписаться' : 'Отписаться';
+          btn.classList.toggle('btn-primary', currentlySubscribed);
+          btn.classList.toggle('btn-danger', !currentlySubscribed);
+          btn.onclick = () => toggleOrgSub(btn, orgId, !currentlySubscribed);
+        })
+        .catch(() => alert('Ошибка сети'));
+      };
+    });
+  </script>
+
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}
+
+

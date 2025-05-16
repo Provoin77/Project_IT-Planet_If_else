@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="event-form-page">
+  <div class="event-form-wrapper">
+    <div class="event-form-container">
+
+      <!-- Левая колонка: форма -->
+      <div class="event-form-column">
+        <h2>
+          {{ event and "Редактировать мероприятие" or "Создать новое мероприятие" }}
+        </h2>
+        <form method="post"
+              action="{% if event %}{{ url_for('edit_event', event_id=event.id) }}{% else %}{{ url_for('create_event') }}{% endif %}"
+              enctype="multipart/form-data"
+              class="event-form">
+          {% if error %}
+            <div class="error">{{ error }}</div>
+          {% endif %}
+
+          <!-- Обложка мероприятия -->
+          <div class="form-row">
+            <label for="image">Обложка мероприятия:</label>
+            <input type="file" name="image" id="image" accept="image/*">
+          </div>
+          {% if event and event.image_filename %}
+            <div class="form-row">
+              <label>Текущая обложка:</label>
+              <div style="margin-top:8px;">
+                <img src="{{ url_for('uploaded_event_image', filename=event.image_filename) }}"
+     alt="Обложка {{ event.title }}" style="max-width:100%;">
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Название -->
+          <div class="form-row">
+            <label for="title">Название:</label>
+            <input type="text" name="title" id="title"
+                   value="{{ event.title if event else '' }}" required>
+          </div>
+
+          <!-- Описание -->
+          <div class="form-row">
+            <label for="description">Описание:</label>
+            <textarea name="description" id="description" required>{{ event.description if event else '' }}</textarea>
+          </div>
+
+          <!-- Организатор -->
+          <div class="form-row">
+            <label for="organizer_input">Организатор:</label>
+            <input type="text" name="organizer_input" id="organizer_input" list="organizers_list"
+                   value="{% if event %}{{ event.creator.org_name }}{% else %}{{ current_user.org_name }}{% endif %}"
+                   readonly>
+            <datalist id="organizers_list">
+              {% for org in organizers_list %}
+                <option value="{{ org.org_name }}">
+              {% endfor %}
+            </datalist>
+          </div>
+
+          <!-- Формат -->
+          <div class="form-row">
+            <label for="event_format">Формат:</label>
+            <select name="event_format" id="event_format" required>
+              <option value="online"  {% if event and event.event_format=='online'  %}selected{% endif %}>Онлайн</option>
+              <option value="offline" {% if event and event.event_format=='offline' %}selected{% endif %}>Офлайн</option>
+            </select>
+          </div>
+
+          <!-- Город -->
+          <div class="form-row">
+            <label for="city">Город:</label>
+            <input type="text" name="city" id="city"
+                   value="{{ event.city if event else '' }}" required>
+          </div>
+
+          <!-- Адрес (только для оффлайн) -->
+          <div class="form-row" id="address_block">
+            <label for="address">Адрес:</label>
+            <input type="text" name="address" id="address"
+                   value="{{ event.address if event else '' }}">
+          </div>
+
+          <!-- Координаты -->
+          <div class="form-row">
+            <label for="lat">Широта:</label>
+            <input type="text" name="lat" id="lat"
+                   value="{{ event.lat if event else '' }}">
+          </div>
+          <div class="form-row">
+            <label for="lon">Долгота:</label>
+            <input type="text" name="lon" id="lon"
+                   value="{{ event.lon if event else '' }}">
+          </div>
+
+          <!-- Дата и время -->
+          <div class="form-row">
+            <label for="date">Дата и время:</label>
+            <input type="datetime-local" name="date" id="date"
+                   value="{{ event.date.strftime('%Y-%m-%dT%H:%M') if event else '' }}" required>
+          </div>
+
+          <!-- Продолжительность -->
+          <div class="form-row">
+            <label for="duration">Продолжительность:</label>
+            <input type="time" name="duration" id="duration" required
+                   value="{{ event.duration if event else '' }}">
+          </div>
+
+          <!-- Ресурсы -->
+          <div class="form-row">
+            <label for="resources">Ресурсы (URL):</label>
+            <input type="url" name="resources" id="resources"
+                   value="{{ event.resources if event and event.resources else '' }}">
+          </div>
+
+          <!-- Приоритет -->
+          <div class="form-row">
+            <label for="priority">Приоритет:</label>
+            <input type="number" name="priority" id="priority" min="0"
+                   value="{{ event.priority if event else 0 }}">
+          </div>
+
+          <!-- Контакты организатора -->
+          <div class="form-row">
+            <label for="organizer_email">Контакты организатора:</label>
+            <input type="email" id="organizer_email"
+                   value="{% if event %}{{ event.creator.email }}{% else %}{{ current_user.email }}{% endif %}"
+                   readonly>
+          </div>
+
+          <!-- Тип и сфера -->
+          <div class="form-row">
+            <label for="event_type">Тип:</label>
+            <select name="event_type" id="event_type" required>
+              {% for et in event_types %}
+                <option value="{{ et.name }}" {% if event and event.event_type == et.name %}selected{% endif %}>
+                  {{ et.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="event_sphere">Сфера:</label>
+            <select name="event_sphere" id="event_sphere" required>
+              {% for es in event_spheres %}
+                <option value="{{ es.name }}" {% if event and event.event_sphere == es.name %}selected{% endif %}>
+                  {{ es.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Кнопка сохранить -->
+          <div class="form-row button-row">
+            <label></label>
+            <button type="submit">Сохранить</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Правая колонка: карта -->
+      <div class="event-map-column">
+        <div id="map" class="event-map"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://api-maps.yandex.ru/2.1/?apikey={{ map_api_key }}&lang=ru_RU"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // переключаем адрес при выборе формата
+  function checkEventFormat() {
+    var fmt = document.getElementById("event_format").value;
+    document.getElementById("address_block").style.display =
+      fmt==="online"?"none":"flex";
+  }
+  document.getElementById("event_format")
+          .addEventListener("change", checkEventFormat);
+  checkEventFormat();
+
+ 
+  ymaps.ready(initMap);
+
+  function initMap() {
+    // Элементы формы, с которыми будем работать
+    var latInput = document.getElementById('lat');
+    var lonInput = document.getElementById('lon');
+    var cityInput = document.getElementById('city');
+    var addressInput = document.getElementById('address');
+    var formatSelect = document.getElementById('event_format');
+    
+    // Начальные координаты (Москва), если нет значения в форме
+    var center = [55.751244, 37.618423];
+    var zoomLevel = 10;
+
+    // Если уже есть lat/lon (например, при редактировании), центрируемся на них
+    var currentLat = parseFloat(latInput.value);
+    var currentLon = parseFloat(lonInput.value);
+    if (!isNaN(currentLat) && !isNaN(currentLon)) {
+      center = [currentLat, currentLon];
+      zoomLevel = 14;
+    }
+
+    // Создаём карту
+    var myMap = new ymaps.Map("map", {
+      center: center,
+      zoom: zoomLevel,
+      controls: ['zoomControl', 'fullscreenControl', 'searchControl']
+    });
+
+    // Поднастроим поисковый контрол (по умолчанию уже есть кнопка поиска)
+    var searchControl = myMap.controls.get('searchControl');
+    searchControl.options.set({
+      noPlacemark: true,          // чтобы не ставить собственные метки при поиске
+      placeholderContent: 'Поиск места...' 
+    });
+
+    var placemark;
+
+    // Если при редактировании уже есть coords, ставим placemark
+    if (!isNaN(currentLat) && !isNaN(currentLon)) {
+      placemark = new ymaps.Placemark(center, {}, { draggable: true });
+      myMap.geoObjects.add(placemark);
+
+      // При завершении перетаскивания обновим поля
+      placemark.events.add('dragend', function() {
+        var coords = placemark.geometry.getCoordinates();
+        getAddress(coords);
+      });
+    }
+
+    // При клике на карту ставим или двигаем placemark
+    myMap.events.add('click', function(e) {
+      var coords = e.get('coords');
+      if (!placemark) {
+        placemark = new ymaps.Placemark(coords, {}, { draggable: true });
+        myMap.geoObjects.add(placemark);
+
+        placemark.events.add('dragend', function() {
+          getAddress(placemark.geometry.getCoordinates());
+        });
+      } else {
+        placemark.geometry.setCoordinates(coords);
+      }
+      getAddress(coords);
+    });
+
+    // При выборе результата в поиске
+    searchControl.events.add('resultselect', function(e) {
+      var index = searchControl.getSelectedIndex();
+      searchControl.getResult(index).then(function(res) {
+        var coords = res.geometry.getCoordinates();
+        if (!placemark) {
+          placemark = new ymaps.Placemark(coords, {}, { draggable: true });
+          myMap.geoObjects.add(placemark);
+
+          placemark.events.add('dragend', function() {
+            getAddress(placemark.geometry.getCoordinates());
+          });
+        } else {
+          placemark.geometry.setCoordinates(coords);
+        }
+        myMap.setCenter(coords, 14);
+        getAddress(coords);
+      });
+    });
+
+    // Функция определения адреса и заполнения формы
+    function getAddress(coords) {
+      ymaps.geocode(coords).then(function(res) {
+        var firstGeoObject = res.geoObjects.get(0);
+        if (!firstGeoObject) return;
+
+        // Обновляем lat/lon
+        latInput.value = coords[0].toFixed(6);
+        lonInput.value = coords[1].toFixed(6);
+
+        // Пытаемся получить город
+        var city = '';
+        var localities = firstGeoObject.getLocalities(); 
+        if (localities && localities.length > 0) {
+          city = localities[0];
+        } else {
+          // Если в localities пусто, пробуем adminAreas
+          var adminAreas = firstGeoObject.getAdministrativeAreas();
+          if (adminAreas && adminAreas.length > 0) {
+            city = adminAreas[adminAreas.length - 1];
+          }
+        }
+        cityInput.value = city;
+
+        // Если формат оффлайн – заполняем поле адреса
+        if (formatSelect.value === 'offline') {
+          var addressLine = firstGeoObject.getAddressLine();
+          addressInput.value = addressLine;
+        }
+      });
+    }
+  }
+});
+</script>
+
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+
+{% endblock %}

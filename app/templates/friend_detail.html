@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Профиль: {{ friend.username }}</h2>
+  <p><strong>Имя:</strong> {{ friend.full_name or friend.username }}</p>
+  <p><strong>Email:</strong> {{ friend.email }}</p>
+
+  <h3>Мероприятия</h3>
+  {% if subscriptions %}
+    <table class="moderation-table" border="1" cellpadding="5" cellspacing="0">
+      <tr><th>Мероприятие</th><th>Дата и время</th><th>Статус</th></tr>
+      {% for it in subscriptions %}
+        <tr>
+          <td><a href="{{ url_for('view_event', event_id=it.event.id) }}">{{ it.event.title }}</a></td>
+          <td>{{ it.event.date.strftime("%d.%m.%Y %H:%M") }}</td>
+          <td>
+            {% if it.status=='registered' %}Собирается посетить
+            {% elif it.status=='in_progress' %}Проходит
+            {% elif it.status=='visited' %}Посетил
+            {% elif it.status=='no_show' %}Не явился
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>Нет доступных мероприятий.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

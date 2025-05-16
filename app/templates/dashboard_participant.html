@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
+
+{% block content %}
+  <h2>Профиль участника</h2>
+  <p><strong>Имя пользователя:</strong> {{ current_user.username }}</p>
+  <p><strong>Email:</strong> {{ current_user.email }}</p>
+  <p><strong>Роль:</strong> Участник</p>
+  <p><a href="{{ url_for('edit_profile') }}">Личные данные</a></p>
+  <p><a href="{{ url_for('my_events') }}">Мои мероприятия</a></p>
+  
+
+
+  <!-- Кнопка открытия/закрытия боковой панели -->
+  <button id="friends-toggle" aria-label="Друзья">🤝</button>
+
+  <!-- Вылезающее меню друзей -->
+  <div id="friends-panel">
+    <div class="panel-header">
+      <h3>Друзья</h3>
+      <button id="friends-close" aria-label="Закрыть">&times;</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- 1) Поиск участников -->
+      <section>
+        <h4>Поиск участников</h4>
+        <input type="text"
+               id="friend-search"
+               placeholder="Имя пользователя или email">
+        <div id="friend-search-results"></div>
+      </section>
+
+      <!-- 2) Входящие заявки -->
+      <section>
+        <h4>Входящие заявки</h4>
+        <ul>
+          {% set incoming = current_user.received_requests
+                            |selectattr("status","equalto","pending")
+                            |list %}
+          {% if incoming %}
+            {% for fr in incoming %}
+              <li>
+                {{ fr.requester.username }} ({{ fr.requester.email }})
+                <form method="post"
+                      action="{{ url_for('respond_friend_request',
+                                         friendship_id=fr.id) }}"
+                      class="inline-form">
+                  <button name="action" value="accept">Принять</button>
+                  <button name="action" value="reject">Отклонить</button>
+                </form>
+              </li>
+            {% endfor %}
+          {% else %}
+            <li>Нет новых заявок.</li>
+          {% endif %}
+        </ul>
+      </section>
+
+      <!-- 3) Список друзей с фильтром -->
+      <section>
+        <h4>Мои друзья</h4>
+        <input type="text"
+               id="friends-filter"
+               placeholder="Фильтр по имени пользователя или email">
+        <ul id="friends-list">
+          {% set all_fr = current_user.sent_requests + current_user.received_requests %}
+          {% set accepted = all_fr
+                             |selectattr("status","equalto","accepted")
+                             |list %}
+          {% if accepted %}
+            {% for fr in accepted %}
+              {% set u = fr.requester if fr.requester_id!=current_user.id else fr.receiver %}
+              <li data-username="{{ u.username|lower }}"
+                  data-email="{{ u.email|lower }}">
+                <a href="{{ url_for('friend_detail', user_id=u.id) }}">
+                  {{ u.username }}
+                </a>
+                <span class="email">({{ u.email }})</span>
+              </li>
+            {% endfor %}
+          {% else %}
+            <li>У вас нет друзей.</li>
+          {% endif %}
+        </ul>
+      </section>
+    </div>
+
+    <div class="form-row">
+      <label for="region">Регион:</label>
+      <input type="text"
+             name="region"
+             id="region"
+             value="{{ current_user.region or '' }}"
+             placeholder="Например, Москва">
+    </div>
+    <!-- 4) Настройки приватности -->
+    <button id="privacy-toggle" aria-label="Настройки приватности">⚙️</button>
+    <div id="privacy-controls">
+      <button id="privacy-close" aria-label="Закрыть">&times;</button>
+      <h4>Приватность мероприятий</h4>
+      <form id="privacy-form"
+            method="post"
+            action="{{ url_for('set_privacy') }}">
+        <select name="privacy">
+          <option value="public"  {% if current_user.event_privacy=='public'  %}selected{% endif %}>
+            Всем
+          </option>
+          <option value="friends" {% if current_user.event_privacy=='friends' %}selected{% endif %}>
+            Только друзьям
+          </option>
+          <option value="private" {% if current_user.event_privacy=='private' %}selected{% endif %}>
+            Никому
+          </option>
+        </select>
+        <button type="submit">Сохранить</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // --- Toggle панели друзей ---
+  const friendsToggle = document.getElementById('friends-toggle');
+  const panel         = document.getElementById('friends-panel');
+  const friendsClose  = document.getElementById('friends-close');
+
+  // Клик по значку «Друзья»
+  friendsToggle.addEventListener('click', () => {
+    const opening = !panel.classList.contains('open');
+    panel.classList.toggle('open');
+    // Если открываем — скрываем значок, иначе показываем
+    friendsToggle.style.display = opening ? 'none' : '';
+  });
+
+  // Клик по крестику
+  friendsClose.addEventListener('click', () => {
+    panel.classList.remove('open');
+    friendsToggle.style.display = '';
+  });
+
+  // Если открываем панель через URL
+  if (window.location.search.includes('open=friends')) {
+    panel.classList.add('open');
+    friendsToggle.style.display = 'none';
+    const url = new URL(window.location);
+    url.searchParams.delete('open');
+    window.history.replaceState({}, '', url);
+  }
+
+  // --- AJAX‑поиск участников + очистка при пустом запросе ---
+  let timer;
+  document.getElementById('friend-search').addEventListener('input', e => {
+    clearTimeout(timer);
+    const q = e.target.value.trim();
+    const out = document.getElementById('friend-search-results');
+    if (!q) {
+      out.innerHTML = '';
+      return;
+    }
+    timer = setTimeout(() => {
+      fetch('/participants/search?q=' + encodeURIComponent(q), {
+        credentials: 'same-origin'
+      })
+      .then(r => r.json())
+      .then(list => {
+        out.innerHTML = '';
+        if (!list.length) {
+          out.textContent = 'Ничего не найдено';
+          return;
+        }
+        list.forEach(u => {
+          const div = document.createElement('div');
+          div.classList.add('search-item');
+
+          // кнопка «Добавить» или статус
+          if (u.friendship === 'none' || u.friendship === 'rejected') {
+            const label = (u.friendship === 'rejected') ? 'Повторить запрос' : 'Добавить';
+            div.innerHTML = `
+              <span>${u.username} (${u.email})</span>
+              <button data-id="${u.id}">${label}</button>
+            `;
+            div.querySelector('button').onclick = () => {
+              fetch('/friends/send_request/' + u.id, {
+                method: 'POST',
+                credentials: 'same-origin'
+              }).then(() => {
+                div.innerHTML = `<span>${u.username} (${u.email})</span>Запрошено`;
+              });
+            };
+          }
+          else if (u.friendship === 'pending') {
+            div.innerHTML = `<span>${u.username} (${u.email})</span>Запрошено`;
+          }
+          else { // accepted
+            div.innerHTML = `<span>${u.username} (${u.email})</span>В друзьях`;
+          }
+
+          out.appendChild(div);
+        });
+      });
+    }, 300);
+  });
+
+  // --- Фильтр списка друзей ---
+  document.getElementById('friends-filter')
+    .addEventListener('input', e => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('#friends-list li').forEach(li => {
+        if (!q) {
+          li.style.display = '';
+          return;
+        }
+        const uname = li.dataset.username,
+              email = li.dataset.email;
+        li.style.display = (uname.includes(q) || email.includes(q))
+                           ? '' : 'none';
+      });
+    });
+
+  // --- Панель приватности ---
+  const privBox = document.getElementById('privacy-controls');
+  document.getElementById('privacy-toggle')
+          .addEventListener('click', () => privBox.classList.toggle('open'));
+  document.getElementById('privacy-close')
+          .addEventListener('click', () => privBox.classList.remove('open'));
+  document.getElementById('privacy-form')
+          .addEventListener('submit', e => {
+    e.preventDefault();
+    const form = e.target,
+          data = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: data,
+      credentials: 'same-origin'
+    }).then(() => privBox.classList.remove('open'));
+  });
+</script>
+
+
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+
+{% endblock %}

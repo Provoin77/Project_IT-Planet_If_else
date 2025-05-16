@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Статистика по событию «{{ event.title }}»</h2>
+  <div id="stats-container">
+    <p>Загрузка…</p>
+  </div>
+  <p><a href="{{ url_for('dashboard') }}">← Назад</a></p>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const container = document.getElementById('stats-container');
+  fetch(`{{ url_for('organizer_event_stats_json', event_id=event.id) }}`)
+    .then(r=>r.json())
+    .then(data=>{
+      const sb = data.subscriptions, rv = data.reviews;
+      container.innerHTML = `
+        <ul>
+          <li><strong>Записались «Я приду»:</strong> ${sb.total}</li>
+          <li style="margin-left:10px;">
+            – ожидают: ${sb.by_status.registered},
+            в процессе: ${sb.by_status.in_progress},
+            посетили: ${sb.by_status.visited},
+            не пришли: ${sb.by_status.no_show}
+          </li>
+          <li><strong>Избранное:</strong> ${data.favorites}</li>
+          <li><strong>Отзывы:</strong> всего ${rv.total},
+            одобрено ${rv.approved}, в ожидании ${rv.pending}
+          </li>
+        </ul>`;
+    })
+    .catch(_=>{
+      container.innerHTML = '<p style="color:red;">Не удалось загрузить статистику.</p>';
+    });
+})();
+</script>
+{% endblock %}

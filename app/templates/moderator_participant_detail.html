@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Детали участника</h2>
+  <p><strong>Имя:</strong> {{ participant.full_name or participant.username }}</p>
+  <p><strong>Имя пользователя:</strong> {{ participant.username }}</p>
+  <p><strong>Почта:</strong> {{ participant.email }}</p>
+
+  <h3>Мероприятия участника</h3>
+
+  <!-- Форма фильтрации -->
+  <div id="detail-filter" style="margin-bottom: 20px;">
+    <input type="text" id="filter-event-title" placeholder="Название мероприятия">
+    <input type="date" id="filter-event-date">
+    <select id="filter-subscription-status">
+      <option value="">Все статусы</option>
+      <option value="registered">Записан</option>
+      <option value="in_progress">Идет</option>
+      <option value="visited">Посетил</option>
+      <option value="no_show">Не посетил</option>
+    </select>
+    <input type="text" id="filter-event-city" placeholder="Город мероприятия">
+  </div>
+
+  <table class="moderation-table" border="1" cellspacing="0" cellpadding="5" width="100%">
+    <thead>
+      <tr>
+        <th>Мероприятие</th>
+        <th>Дата и время</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody id="subscriptions-table-body">
+      {# Содержимое заполнится JS-ом #}
+    </tbody>
+  </table>
+
+  <p><a href="{{ url_for('moderator_participants') }}">← Назад к списку участников</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Собираем данные подписок в JS
+var subscriptionsData = [
+  {% for info in subscriptions_info %}
+  {
+    id: {{ info.subscription.id }},
+    event_id: {{ info.subscription.event.id }},
+    title: {{ info.subscription.event.title|tojson }},
+    // сохраняем ISO-дату, чтобы JS мог распарсить
+    date: {{ info.subscription.event.date.isoformat()|tojson }},
+    city: {{ info.subscription.event.city|tojson }},
+    status: {{ info.subscription.status|tojson }},
+    can_update: {{ 'true' if info.can_update else 'false' }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+// Переводим статус в русский
+function statusText(s) {
+  switch(s) {
+    case 'registered':   return 'Записан';
+    case 'in_progress':  return 'Идет';
+    case 'visited':      return 'Посетил';
+    case 'no_show':      return 'Не посетил';
+    default:             return s;
+  }
+}
+
+// Перерисовываем таблицу подписок
+function renderSubscriptions(data) {
+  var tbody = document.getElementById('subscriptions-table-body');
+  tbody.innerHTML = '';
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4">Мероприятия не найдены.</td></tr>';
+    return;
+  }
+  data.forEach(function(sub){
+    var dt = new Date(sub.date);
+    var dtStr = dt.toLocaleString('ru-RU', {
+      year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit'
+    });
+    var tr = document.createElement('tr');
+    var actions = sub.can_update
+      ? '<form method="post" action="/moderator/subscription/' + sub.id + '/update" style="display:inline;">' +
+          '<select name="status">' +
+            '<option value="visited"'   + (sub.status==='visited'?' selected':'') + '>Посетил</option>' +
+            '<option value="no_show"'   + (sub.status==='no_show'?' selected':'') + '>Не посетил</option>' +
+          '</select>' +
+          '<button type="submit">Обновить</button>' +
+        '</form>'
+      : '&mdash;';
+    tr.innerHTML =
+      '<td><a href="/events/' + sub.event_id + '">' + sub.title + '</a></td>' +
+      '<td>' + dtStr + '</td>' +
+      '<td>' + statusText(sub.status) + '</td>' +
+      '<td>' + actions + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// Фильтрация по четырём полям
+function filterSubscriptions() {
+  var t = document.getElementById('filter-event-title').value.toLowerCase();
+  var d = document.getElementById('filter-event-date').value;       // YYYY-MM-DD
+  var s = document.getElementById('filter-subscription-status').value;
+  var c = document.getElementById('filter-event-city').value.toLowerCase();
+
+  var filtered = subscriptionsData.filter(function(sub){
+    if (t && !sub.title.toLowerCase().includes(t))   return false;
+    if (d) {
+      var sd = sub.date.split('T')[0];
+      if (sd !== d) return false;
+    }
+    if (s && sub.status !== s)    return false;
+    if (c && !sub.city.toLowerCase().includes(c))    return false;
+    return true;
+  });
+  renderSubscriptions(filtered);
+}
+
+// Навешиваем слушатели и сразу рисуем
+document.addEventListener('DOMContentLoaded', function(){
+  renderSubscriptions(subscriptionsData);
+  document.getElementById('filter-event-title')
+          .addEventListener('input', filterSubscriptions);
+  document.getElementById('filter-event-date')
+          .addEventListener('change', filterSubscriptions);
+  document.getElementById('filter-subscription-status')
+          .addEventListener('change', filterSubscriptions);
+  document.getElementById('filter-event-city')
+          .addEventListener('input', filterSubscriptions);
+});
+</script>
+
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+
+{% endblock %}

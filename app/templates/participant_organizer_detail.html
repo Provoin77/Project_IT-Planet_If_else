@@ -1,0 +1,36 @@
+{# templates/participant_organizer_detail.html #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="container">
+    <h1>Организатор: {{ organizer.org_name }}</h1>
+    <p><strong>Описание:</strong> {{ organizer.org_description }}</p>
+    <p><strong>Сфера:</strong> {{ organizer.org_sphere }}</p>
+    <p><strong>Телефон:</strong> {{ organizer.org_phone }}</p>
+    <p><strong>Email:</strong> <a href="mailto:{{ organizer.email }}">{{ organizer.email }}</a></p>
+
+    {# Кнопка Подписаться/Отписаться #}
+    <form id="org-sub-form" method="post" action="{% if is_subscribed %}{{ url_for('participant_unsubscribe_org', org_id=organizer.id) }}{% else %}{{ url_for('participant_subscribe_org', org_id=organizer.id) }}{% endif %}">
+      <button type="submit" class="btn btn-{{ is_subscribed and 'danger' or 'primary' }}">
+        {{ is_subscribed and 'Отписаться' or 'Подписаться' }}
+      </button>
+    </form>
+
+    <hr>
+
+    <h2>События организатора</h2>
+    {% if events %}
+      <ul>
+        {% for ev in events %}
+          <li>
+            <a href="{{ url_for('view_event', event_id=ev.id) }}">
+              {{ ev.title }} ({{ ev.date.strftime("%d.%m.%Y %H:%M") }})
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>У этого организатора пока нет событий.</p>
+    {% endif %}
+  </div>
+{% endblock %}

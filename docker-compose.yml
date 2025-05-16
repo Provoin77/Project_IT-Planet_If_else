@@ -1,0 +1,54 @@
+services:
+  web:
+    build: .
+    container_name: proect_merop-web
+    ports:
+      - "80:80"
+    environment:
+      TZ: Europe/Moscow
+      DATABASE_URL: postgresql://eventsuser:eventspassword@db:5432/eventsdb
+      SECRET_KEY: supersecretkey
+      YANDEX_MAPS_API_KEY: 84120179-1a56-43a6-be14-4e1d1f55fe91
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      MAIL_SERVER: ${MAIL_SERVER}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USE_SSL: ${MAIL_USE_SSL}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    depends_on:
+      - db
+    volumes:
+      - ./uploads:/app/static/uploads
+    command: ["python", "run.py"]
+
+  bot:
+    build: .
+    container_name: proect_merop-bot
+    volumes:
+      - .:/app
+    command: ["python", "telegram_bot.py"]
+    environment:
+      TZ: Europe/Moscow
+      DATABASE_URL: postgresql://eventsuser:eventspassword@db:5432/eventsdb
+      SECRET_KEY: supersecretkey
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      APP_DOMAIN: ${APP_DOMAIN}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13-alpine
+    container_name: proect_merop-db
+    restart: always
+    environment:
+      POSTGRES_USER: eventsuser
+      POSTGRES_PASSWORD: eventspassword
+      POSTGRES_DB: eventsdb
+      TZ: Europe/Moscow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

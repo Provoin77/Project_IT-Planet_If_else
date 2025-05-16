@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* Модалка блокировки */
+    #blockModal {
+      display: none;
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    #blockModal.show { display: flex; }
+
+    #blockModal .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 4px;
+      width: 400px; max-width: 90%;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    #blockModal .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #blockModal .close {
+      cursor: pointer; font-size: 20px;
+    }
+
+    #blockModal .modal-body {
+      margin-top: 10px;
+    }
+    #blockModal .modal-footer {
+      margin-top: 15px; text-align: right;
+    }
+    #blockModal .modal-footer button {
+      margin-left: 10px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h2>Список участников</h2>
+
+  <!-- Форма фильтрации -->
+  <div id="participant-filter" style="margin-bottom:20px;">
+    <input id="filter-username-email" type="text" placeholder="Имя пользователя или почта">
+    <input id="filter-event-name"       type="text" placeholder="Название мероприятия">
+    <select id="filter-participant-status">
+      <option value="">Все участники</option>
+      <option value="registered">Собираются посетить</option>
+    </select>
+  </div>
+
+  <!-- Таблица участников -->
+  <table class="moderation-table" border="1" cellspacing="0" cellpadding="5" width="100%">
+    <thead>
+      <tr>
+        <th>Имя</th>
+        <th>Почта</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody id="participants-table-body">
+      {% for user in participants %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>
+            <a href="{{ url_for('moderator_participant_detail', user_id=user.id) }}">Просмотр деталей</a> |
+            <a href="{{ url_for('edit_participant',           user_id=user.id) }}">Редактировать</a> |
+            {% if user.is_blocked %}
+              <a href="#"
+                 class="unblock-link"
+                 data-id="{{ user.id }}"
+                 data-username="{{ user.username }}">
+                Разблокировать
+              </a>
+            {% else %}
+              <a href="#"
+                 class="block-link"
+                 data-id="{{ user.id }}"
+                 data-username="{{ user.username }}">
+                Заблокировать
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Модалка для блокировки -->
+  <div id="blockModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Заблокировать пользователя <span id="blk-username"></span>?</h3>
+        <span class="close">&times;</span>
+      </div>
+      <form id="blockForm" method="post">
+        <div class="modal-body">
+          <label for="reason">Причина блокировки:</label>
+          <textarea id="reason" name="reason" required style="width:100%; height:80px;"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="cancel-btn">Отмена</button>
+          <button type="submit">Подтвердить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tableBody = document.getElementById('participants-table-body');
+      const modal     = document.getElementById('blockModal');
+      const form      = document.getElementById('blockForm');
+      const unameElem = document.getElementById('blk-username');
+      const closeBtn  = modal.querySelector('.close');
+      const cancelBtn = modal.querySelector('.cancel-btn');
+
+      // Делегированный обработчик для кликов в таблице
+      tableBody.addEventListener('click', e => {
+        // Сначала — блокировка
+        const blockLink = e.target.closest('.block-link');
+        if (blockLink) {
+          e.preventDefault();
+          const uid   = blockLink.dataset.id;
+          const uname = blockLink.dataset.username;
+          unameElem.textContent = uname;
+          form.action = `/moderator/participants/${uid}/block`;
+          modal.classList.add('show');
+          return;
+        }
+
+        // Затем — разблокировка
+        const unblockLink = e.target.closest('.unblock-link');
+        if (unblockLink) {
+          e.preventDefault();
+          const uid   = unblockLink.dataset.id;
+          const uname = unblockLink.dataset.username;
+          if (!confirm(`Разблокировать пользователя ${uname}?`)) return;
+          fetch(`/moderator/participants/${uid}/unblock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: ''
+          })
+          .then(res => {
+            if (res.ok) window.location.reload();
+            else alert('Не удалось разблокировать пользователя.');
+          })
+          .catch(() => alert('Ошибка запроса.'));
+        }
+      });
+
+      // Закрытие модалки
+      [closeBtn, cancelBtn].forEach(btn =>
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          modal.classList.remove('show');
+        })
+      );
+
+      // Данные для фильтрации
+      const participantsData = [
+        {% for u in participants %}
+        {
+          id: {{ u.id }},
+          username: {{ u.username|tojson }},
+          email:    {{ u.email|tojson }},
+          subscriptions: [
+            {% for s in u.subscriptions %}
+            { event_title: {{ s.event.title|tojson }}, status: {{ s.status|tojson }} }{% if not loop.last %},{% endif %}
+            {% endfor %}
+          ]
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ];
+
+      // Функции фильтрации
+      function render(data) {
+        tableBody.innerHTML = '';
+        if (!data.length) {
+          tableBody.innerHTML = '<tr><td colspan="3">Нет участников.</td></tr>';
+          return;
+        }
+        data.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.username}</td>
+            <td>${u.email}</td>
+            <td>
+              <a href="/moderator/participants/${u.id}">Просмотр деталей</a> |
+              <a href="/moderator/participants/${u.id}/edit">Редактировать</a> |
+              <a href="#" class="block-link" data-id="${u.id}" data-username="${u.username}">Заблокировать</a>
+            </td>`;
+          tableBody.appendChild(tr);
+        });
+      }
+
+      function filter() {
+        const txt = document.getElementById('filter-username-email').value.toLowerCase();
+        const evt = document.getElementById('filter-event-name').value.toLowerCase();
+        const st  = document.getElementById('filter-participant-status').value;
+        const filtered = participantsData.filter(u => {
+          if (txt && !(u.username.toLowerCase().includes(txt) || u.email.toLowerCase().includes(txt))) return false;
+          if (evt && !u.subscriptions.some(s => s.event_title.toLowerCase().includes(evt))) return false;
+          if (st && !u.subscriptions.some(s => s.status === st)) return false;
+          return true;
+        });
+        render(filtered);
+      }
+
+      // Навешиваем слушатели на фильтры
+      document.getElementById('filter-username-email')
+              .addEventListener('input', filter);
+      document.getElementById('filter-event-name')
+              .addEventListener('input', filter);
+      document.getElementById('filter-participant-status')
+              .addEventListener('change', filter);
+    });
+  </script>
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

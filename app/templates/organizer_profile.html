@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {% if is_moderator %}
+    <div class="moderator-organizer-page">
+      <h2>Редактирование информации об организаторе</h2>
+
+      <!-- Основная информация -->
+      <form method="post" class="section" enctype="multipart/form-data">
+        <input type="hidden" name="form_type" value="profile">
+        <h3>Основная информация</h3>
+
+        <div class="field-row">
+          <label for="org_name">Наименование организации:</label>
+          <input type="text" name="org_name" id="org_name"
+                 value="{{ user.org_name }}" required>
+        </div>
+
+        <div class="field-row">
+          <label for="email">Email:</label>
+          <input type="email" name="email" id="email"
+                 value="{{ user.email }}" required>
+        </div>
+
+        <div class="field-row">
+          <label for="org_description">Краткое описание:</label>
+          <textarea name="org_description" id="org_description" rows="4"
+                    required>{{ user.org_description or '' }}</textarea>
+        </div>
+
+        <div class="field-row">
+          <label for="org_sphere">Сфера деятельности:</label>
+          <input type="text" name="org_sphere" id="org_sphere"
+                 value="{{ user.org_sphere or '' }}">
+        </div>
+
+        <div class="field-row">
+          <label for="org_phone">Номер телефона:</label>
+          <input type="text" name="org_phone" id="org_phone"
+                 value="{{ user.org_phone or '' }}">
+        </div>
+
+        <div class="field-row">
+          <label for="accreditation_image">Аккредитация (новый файл):</label>
+          <input type="file" name="accreditation_image" id="accreditation_image">
+        </div>
+        {% if user.accreditation_image %}
+          <div class="field-row">
+            <label>Текущий файл:</label>
+            <a href="{{ accreditation_url }}" target="_blank">{{ user.accreditation_image }}</a>
+          </div>
+        {% endif %}
+
+        <div class="button-row">
+          <button type="submit">Сохранить информацию</button>
+        </div>
+      </form>
+
+      <!-- Смена пароля -->
+      <h2>Настройки</h2>
+      <form method="post" class="section">
+        <input type="hidden" name="form_type" value="password">
+        <h3>Смена пароля</h3>
+
+        <div class="field-row">
+          <label for="new_password">Новый пароль:</label>
+          <input type="password" name="new_password" id="new_password" required>
+        </div>
+
+        <div class="field-row">
+          <label for="confirm_password">Подтвердите пароль:</label>
+          <input type="password" name="confirm_password" id="confirm_password" required>
+        </div>
+
+        <div class="button-row">
+          <button type="submit">Сохранить пароль</button>
+        </div>
+      </form>
+    </div>
+  {% else %}
+    <!-- Обычный организаторский вид -->
+    <h2>Основная информация</h2>
+    <form method="post" class="section">
+      <div>
+        <p><strong>Наименование организации:</strong> {{ user.org_name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Краткое описание:</strong><br>{{ user.org_description }}</p>
+        <p><strong>Сфера:</strong> {{ user.org_sphere }}</p>
+        <p><strong>Телефон:</strong> {{ user.org_phone }}</p>
+        <p>
+          <strong>Аккредитация:</strong>
+          {% if user.accreditation_image %}
+            <a href="{{ accreditation_url }}" target="_blank">Просмотреть</a>
+          {% else %}
+            не загружена
+          {% endif %}
+        </p>
+        <p><small>Смена информации осуществляется через модератора.</small></p>
+      </div>
+    </form>
+
+    <h2>Настройки</h2>
+    <form method="post" class="section">
+      <input type="hidden" name="form_type" value="password">
+      <h3>Смена пароля</h3>
+      <label for="old_password">Старый пароль:</label><br>
+      <input type="password" name="old_password" id="old_password" required><br><br>
+      <label for="new_password">Новый пароль:</label><br>
+      <input type="password" name="new_password" id="new_password" required><br><br>
+      <label for="confirm_password">Подтвердите пароль:</label><br>
+      <input type="password" name="confirm_password" id="confirm_password" required><br><br>
+      <button type="submit">Изменить пароль</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

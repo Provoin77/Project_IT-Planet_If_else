@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="profile-page">
+
+    {% if is_moderator %}
+      <h2>Редактирование профиля участника</h2>
+      <form method="post" class="section profile-section">
+        <input type="hidden" name="form_type" value="profile">
+
+        <div class="form-row">
+          <label for="full_name">Имя:</label>
+          <input type="text" name="full_name" id="full_name" value="{{ user.full_name or '' }}" required>
+        </div>
+
+        <div class="form-row">
+          <label for="username">Имя пользователя:</label>
+          <input type="text" name="username" id="username" value="{{ user.username }}" required>
+        </div>
+
+        <div class="form-row">
+          <label for="email">Email:</label>
+          <input type="email" name="email" id="email" value="{{ user.email }}" required>
+        </div>
+
+        <div class="form-row">
+          <label for="telegram_login">Telegram:</label>
+          <input type="text" name="telegram_login" id="telegram_login" value="{{ user.telegram_login or '' }}">
+        </div>
+
+        <div class="form-row">
+          <label for="date_of_birth">День рождения:</label>
+          <input type="date" name="date_of_birth" id="date_of_birth" value="{{ user.date_of_birth or '' }}">
+        </div>
+
+        <div class="form-row">
+          <label for="phone_number">Телефон:</label>
+          <input type="text" name="phone_number" id="phone_number" value="{{ user.phone_number or '' }}">
+        </div>
+
+        <div class="form-row">
+          <label for="about_me">О себе:</label>
+          <textarea name="about_me" id="about_me" rows="4">{{ user.about_me or '' }}</textarea>
+        </div>
+
+        <div class="form-row">
+          <label>Пол:</label>
+          <div class="gender-group">
+            <label class="radio-circle">
+              <input type="radio" name="gender" value="male" {% if user.gender=='male' %}checked{% endif %}>
+              <span class="circle"></span> Мужской
+            </label>
+            <label class="radio-circle">
+              <input type="radio" name="gender" value="female" {% if user.gender=='female' %}checked{% endif %}>
+              <span class="circle"></span> Женский
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="skills">Навыки:</label>
+          <input type="text" name="skills" id="skills" value="{{ user.skills or '' }}">
+        </div>
+
+        <div class="form-row button-row">
+          <label></label>
+          <button type="submit">Сохранить данные</button>
+        </div>
+      </form>
+
+      <h2>Настройки</h2>
+      <form method="post" class="section profile-section">
+        <input type="hidden" name="form_type" value="password">
+        <h3>Смена пароля</h3>
+
+        <div class="form-row">
+          <label for="new_password">Новый пароль:</label>
+          <input type="password" name="new_password" id="new_password" required>
+        </div>
+
+        <div class="form-row">
+          <label for="confirm_password">Подтвердите пароль:</label>
+          <input type="password" name="confirm_password" id="confirm_password" required>
+        </div>
+
+        <div class="form-row button-row">
+          <label></label>
+          <button type="submit">Сохранить пароль</button>
+        </div>
+      </form>
+
+    {% else %}
+      <h2>Личные данные</h2>
+      <div class="section profile-section">
+        <p><strong>Имя:</strong> {{ user.full_name }}</p>
+        <p><strong>Логин:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+
+        <form method="post" class="event-form">
+          <input type="hidden" name="form_type" value="profile">
+
+          <div class="form-row">
+            <label for="telegram_login">Telegram:</label>
+            <input type="text" name="telegram_login" id="telegram_login"
+                   value="{{ user.telegram_login or '' }}">
+          </div>
+
+          <div class="form-row">
+            <label for="date_of_birth">День рождения:</label>
+            <input type="date" name="date_of_birth" id="date_of_birth"
+                   value="{{ user.date_of_birth }}" {% if user.date_of_birth %}disabled{% endif %}>
+          </div>
+
+          <div class="form-row">
+            <label for="phone_number">Телефон:</label>
+            <input type="text" name="phone_number" id="phone_number"
+                   value="{{ user.phone_number or '' }}">
+          </div>
+
+          <div class="form-row">
+            <label for="about_me">О себе:</label>
+            <textarea name="about_me" id="about_me" rows="4">{{ user.about_me or '' }}</textarea>
+          </div>
+
+          <div class="form-row">
+            <label>Пол:</label>
+            <div class="gender-group">
+              <label class="radio-circle">
+                <input type="radio" name="gender" value="male" {% if user.gender=='male' %}checked{% endif %}>
+                <span class="circle"></span> Мужской
+              </label>
+              <label class="radio-circle">
+                <input type="radio" name="gender" value="female" {% if user.gender=='female' %}checked{% endif %}>
+                <span class="circle"></span> Женский
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="skills">Навыки:</label>
+            <input type="text" name="skills" id="skills"
+                   value="{{ user.skills or '' }}">
+          </div>
+            <div class="form-row">
+                <label for="region">Регион:</label>
+                <input type="text"
+                       name="region"
+                       id="region"
+                       value="{{ user.region or '' }}"
+                       placeholder="Например, Москва">
+            </div>
+
+          <div class="form-row button-row">
+            <label></label>
+            <button type="submit">Сохранить</button>
+          </div>
+        </form>
+      </div>
+{# ——— Telegram авторизация ——— #}
+  {% if not user.email_2fa_enabled %}
+    <div class="form-group">
+      <label>Telegram:</label>
+      {% if user.telegram_login %}
+        <span>{{ user.telegram_login }}</span>
+      {% else %}
+        <a href="{{ url_for('auth_telegram.link_telegram') }}">Привязать Telegram</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# ——— Email-2FA ——— #}
+  {% if not user.telegram_login %}
+    <h2>Двухфакторная аутентификация (Email)</h2>
+    {% if user.email_2fa_enabled %}
+      <form method="post" action="{{ url_for('auth_email.email_2fa_disable') }}">
+        <button type="submit">Отключить Email-2FA</button>
+      </form>
+      <p>📧 Email-2FA включена.</p>
+    {% else %}
+      <p>📧 Email-2FA не включена.</p>
+      <a href="{{ url_for('auth_email.email_2fa_setup') }}" class="btn">Включить Email-2FA</a>
+    {% endif %}
+  {% endif %}
+
+
+      <h2>Настройки</h2>
+      <form method="post" class="section profile-section">
+        <input type="hidden" name="form_type" value="password">
+        <h3>Смена пароля</h3>
+
+        <div class="form-row">
+          <label for="old_password">Старый пароль:</label>
+          <input type="password" name="old_password" id="old_password" required>
+        </div>
+
+        <div class="form-row">
+          <label for="new_password">Новый пароль:</label>
+          <input type="password" name="new_password" id="new_password" required>
+        </div>
+
+        <div class="form-row">
+          <label for="confirm_password">Подтвердите пароль:</label>
+          <input type="password" name="confirm_password" id="confirm_password" required>
+        </div>
+
+        <div class="form-row button-row">
+          <label></label>
+          <button type="submit">Изменить пароль</button>
+        </div>
+      </form>
+
+    {% endif %}
+
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

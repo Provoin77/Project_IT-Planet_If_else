@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-4">
+  <h2>Оставить отзыв: {{ event.title }}</h2>
+  <form method="post" enctype="multipart/form-data">
+    <div class="form-group">
+      <label for="rating">Оценка (1–10):</label>
+      <input type="number" name="rating" id="rating" class="form-control" min="1" max="10" required>
+    </div>
+    <div class="form-group">
+      <label for="comment">Комментарий:</label>
+      <textarea name="comment" id="comment" rows="4" class="form-control" required></textarea>
+    </div>
+    <div class="form-group">
+      <label for="image">Прикрепить изображение (необязательно):</label>
+      <input type="file" name="image" id="image" class="form-control-file"
+             accept=".png,.jpg,.jpeg,.gif">
+    </div>
+    <button type="submit" class="btn btn-primary">Отправить на модерацию</button>
+    <a href="{{ url_for('my_events') }}" class="btn btn-secondary">Отмена</a>
+  </form>
+</div>
+{% endblock %}

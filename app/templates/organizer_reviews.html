@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="container">
+    <h1>Отзывы на модерацию (Ваши события)</h1>
+
+    <h2>Новые отзывы</h2>
+    {% if pending_reviews %}
+      {% for rev in pending_reviews %}
+        <div class="review-card">
+          <div class="review-header">
+            <span class="review-author">{{ rev.author.username }}</span>
+            <span class="review-rating">Оценка: {{ rev.rating }}/10</span>
+          </div>
+          <p class="review-comment">{{ rev.comment }}</p>
+          {% if rev.image_filename %}
+            <img src="{{ url_for('static', filename='uploads/reviews/' ~ rev.image_filename) }}"
+                 class="review-image">
+          {% endif %}
+          <div class="review-actions">
+            <form action="{{ url_for('organizer_approve_review', review_id=rev.id) }}"
+                  method="post" style="display:inline;">
+              <button type="submit" class="btn btn-success btn-sm">Одобрить</button>
+            </form>
+            <form action="{{ url_for('organizer_delete_review', review_id=rev.id) }}"
+                  method="post" style="display:inline;">
+              <button type="submit" class="btn btn-danger btn-sm">Отклонить</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info">Новых отзывов нет.</div>
+    {% endif %}
+
+    <hr>
+
+    <h2>Одобренные отзывы</h2>
+    {% if approved_reviews %}
+      {% for rev in approved_reviews %}
+        <div class="review-card">
+          <div class="review-header">
+            <span class="review-author">{{ rev.author.username }}</span>
+            <span class="review-rating">Оценка: {{ rev.rating }}/10</span>
+          </div>
+          <p class="review-comment">{{ rev.comment }}</p>
+          {% if rev.image_filename %}
+             <a href="{{ url_for('uploaded_review_image', filename=rev.image_filename) }}"
+         target="_blank">Посмотреть</a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info">Пока нет одобренных отзывов.</div>
+    {% endif %}
+  </div>
+{% endblock %}

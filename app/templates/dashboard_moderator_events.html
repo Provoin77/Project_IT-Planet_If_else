@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
+
+{% block content %}
+  <h2>Список мероприятий</h2>
+  <p>Модератор: <strong>{{ current_user.username }}</strong></p>
+  <p><a href="{{ url_for('dashboard') }}">← Назад в модерацию</a></p>
+
+  <!-- Фильтрация -->
+  <div style="margin-bottom:20px;">
+    <input type="text" id="filter-title" placeholder="Название мероприятия">
+    <input type="text" id="filter-organizer" placeholder="Организатор">
+    <input type="date"  id="filter-date">
+    <select id="filter-status">
+      <option value="">Все статусы</option>
+      <option value="pending">На модерации</option>
+      <option value="approved">Одобрено</option>
+    </select>
+  </div>
+
+  <table class="moderation-table" border="1" cellspacing="0" cellpadding="5">
+    <thead>
+      <tr>
+        <th>Название мероприятия</th>
+        <th>Организатор</th>
+        <th class="date-col">Дата</th>
+        <th>Статус</th>
+        <th class="actions">Действия</th>
+      </tr>
+    </thead>
+    <tbody id="events-table-body">
+      {% for ev in events %}
+      <tr>
+        <td>
+          <a href="{{ url_for('view_event', event_id=ev.id) }}">
+            {{ ev.title }}
+          </a>
+        </td>
+        <td>{{ ev.creator.org_name if ev.creator else '' }}</td>
+        <td class="date-col">{{ ev.date.strftime("%d.%m.%Y %H:%M") }}</td>
+        <td>{{ ev.is_approved and 'Одобрено' or 'На модерации' }}</td>
+        <td class="actions">
+          <form method="get"
+                action="{{ url_for('edit_event', event_id=ev.id) }}"
+                style="display:inline;">
+            <button type="submit">Редактировать</button>
+          </form>
+          {% if not ev.is_approved %}
+          <form method="post"
+                action="{{ url_for('approve_event', event_id=ev.id) }}"
+                style="display:inline;">
+            <button type="submit">Одобрить</button>
+          </form>{% endif %} 
+          <form method="post"
+                action="{{ url_for('delete_event', event_id=ev.id) }}"
+                style="display:inline;">
+            <button type="submit"
+                    onclick="return confirm('Удалить мероприятие «{{ ev.title }}»?');">
+              Удалить
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// JS‑фильтрация таблицы мероприятий
+;(function(){
+  var rows = document.querySelectorAll('#events-table-body tr');
+  document.getElementById('filter-title').addEventListener('input', filter);
+  document.getElementById('filter-organizer').addEventListener('input', filter);
+  document.getElementById('filter-date').addEventListener('change', filter);
+  document.getElementById('filter-status').addEventListener('change', filter);
+
+  function filter(){
+    var t = document.getElementById('filter-title').value.toLowerCase();
+    var o = document.getElementById('filter-organizer').value.toLowerCase();
+    var d = document.getElementById('filter-date').value;
+    var s = document.getElementById('filter-status').value;
+    rows.forEach(function(r){
+      var c = r.cells, ok = true;
+      if (t && !c[0].innerText.toLowerCase().includes(t)) ok = false;
+      if (o && !c[1].innerText.toLowerCase().includes(o)) ok = false;
+      if (d) {
+        var p = c[2].innerText.split(' ')[0].split('.');
+        if ((p[2]+'-'+p[1]+'-'+p[0]) !== d) ok = false;
+      }
+      if (s) {
+        var st = c[3].innerText.trim()==='Одобрено'?'approved':'pending';
+        if (st !== s) ok = false;
+      }
+      r.style.display = ok ? '' : 'none';
+    });
+  }
+})();
+</script>
+
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

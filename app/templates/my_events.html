@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  {{ super() }}
+  <style>
+    /* Общий стиль для действий */
+    .btn-action {
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-block;
+      margin-right: 8px;
+      transition: background .2s;
+    }
+    .btn-action:hover {
+      background: #333;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h2>Мои мероприятия</h2>
+
+  {% if subscriptions %}
+    <div id="filter-form" style="margin:20px 0;">
+      <input type="text"   id="filter-title"  placeholder="Поиск по названию">
+      <input type="date"   id="filter-date"   style="margin:0 10px;">
+      <select id="filter-status">
+        <option value="">Все статусы</option>
+        <option value="собираетесь посетить">Собираетесь посетить</option>
+        <option value="проходит">Проходит</option>
+        <option value="посетили">Посетили</option>
+        <option value="прошло (не явились)">Не явились</option>
+      </select>
+    </div>
+
+    <table class="moderation-table my-events" border="1" cellspacing="0" cellpadding="5">
+      <thead>
+        <tr>
+          <th>Мероприятие</th>
+          <th>Дата и время</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for sub in subscriptions %}
+        <tr>
+          <td>
+            <a href="{{ url_for('view_event', event_id=sub.event.id) }}">
+              {{ sub.event.title }}
+            </a>
+          </td>
+          <td>{{ sub.event.date.strftime("%d.%m.%Y %H:%M") }}</td>
+          <td>
+            {% if sub.status == 'registered' %}
+              Собираетесь посетить
+            {% elif sub.status == 'in_progress' %}
+              Проходит
+            {% elif sub.status == 'visited' %}
+              Посетили
+            {% elif sub.status == 'no_show' %}
+              Прошло (не явились)
+            {% endif %}
+          </td>
+          <td>
+            {# «Отписаться» для зарегистрированных #}
+            {% if sub.status == 'registered' %}
+              <form method="post"
+                    action="{{ url_for('unsubscribe', event_id=sub.event.id) }}"
+                    style="display:inline-block;">
+                <button type="submit" class="btn-action">Отписаться</button>
+              </form>
+            {% endif %}
+
+            {# «Оставить отзыв» для посещённых #}
+            {% if sub.status == 'visited' %}
+              <a href="{{ url_for('leave_review', event_id=sub.event.id) }}"
+                 class="btn-action">
+                Оставить отзыв
+              </a>
+            {% endif %}
+
+            {# «Удалить» — всегда #}
+            <form method="post"
+                  action="{{ url_for('delete_subscription', event_id=sub.event.id) }}"
+                  style="display:inline-block;">
+              <button type="submit" class="btn-action">Удалить мероприятие</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Вы не записаны ни на одно мероприятие.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Фильтрация строк участника
+function filterParticipantEvents() {
+  var ft = document.getElementById('filter-title').value.toLowerCase();
+  var fd = document.getElementById('filter-date').value;
+  var fs = document.getElementById('filter-status').value.toLowerCase();
+  document.querySelectorAll('.my-events tbody tr').forEach(function(row){
+    var title = row.cells[0].innerText.toLowerCase();
+    var dtRaw = row.cells[1].innerText.split(' ')[0];
+    var parts = dtRaw.split('.');
+    var rowDate = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+    var status = row.cells[2].innerText.toLowerCase();
+    var ok = true;
+    if (ft && title.indexOf(ft)===-1) ok = false;
+    if (fd && rowDate !== fd) ok = false;
+    if (fs && status.indexOf(fs)===-1) ok = false;
+    row.style.display = ok ? '' : 'none';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  ['filter-title','filter-date','filter-status'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener(id==='filter-date' ? 'change' : 'input', filterParticipantEvents);
+  });
+});
+</script>
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

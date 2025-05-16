@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Модерация заявок организаторов</h2>
+  {% if organizers and organizers|length > 0 %}
+    <table class="moderation-table">
+      <tr>
+        <th>ID</th>
+        <th>Наименование организации</th>
+        <th>Email</th>
+        <th>Сфера деятельности</th>
+        <th>Аккредитация</th>
+        <th class="actions">Действия</th>
+      </tr>
+      {% for org in organizers %}
+        <tr>
+          <td>{{ org.id }}</td>
+          <td>{{ org.org_name }}</td>
+          <td>{{ org.email }}</td>
+          <td>{{ org.org_sphere }}</td>
+          <td>
+            {% if org.accreditation_image %}
+              <!-- Кнопка/ссылка на просмотр файла -->
+              <a href="{{ url_for('view_accreditation', user_id=org.id) }}" target="_blank">Посмотреть</a>
+            {% else %}
+              Нет загруженного файла
+            {% endif %}
+          </td>
+          <td>
+            <form action="{{ url_for('approve_organizer', user_id=org.id) }}" method="post" style="display:inline;">
+              <button type="submit">Одобрить</button>
+            </form>
+            <form action="{{ url_for('reject_organizer', user_id=org.id) }}" method="post" style="display:inline;">
+              <button type="submit" onclick="return confirm('Отклонить заявку?');">Отклонить</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>Нет заявок на регистрацию организатора.</p>
+  {% endif %}
+{% endblock %}
+
+
+
+{% block scripts %}
+
+<script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}
+

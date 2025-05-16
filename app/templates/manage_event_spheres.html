@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Управление Сферами Мероприятий</h2>
+  <form method="post">
+    <label for="new_sphere">Новая сфера мероприятия:</label>
+    <input type="text" name="new_sphere" id="new_sphere">
+    <button type="submit">Добавить</button>
+  </form>
+  <h3>Существующие сферы:</h3>
+  <ul>
+    {% for es in event_spheres %}
+      <li>
+        {{ es.name }}
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="delete_id" value="{{ es.id }}">
+          <button type="submit" onclick="return confirm('Удалить сферу {{ es.name }}?');">Удалить</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

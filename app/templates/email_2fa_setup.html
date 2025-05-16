@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="auth-container">
+  <h2>Подключение Email-2FA</h2>
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in msgs %}<div class="flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+  <form method="post">
+    <div>
+      <label for="code">Код из письма:</label>
+      <input type="text" name="code" id="code" required>
+    </div>
+    <div class="button-row">
+      <button type="submit">Подтвердить</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+
+    .container {
+      width: 70%;
+      margin-left: 15%;
+      padding: 20px 0;
+      box-sizing: border-box;
+    }
+    /* Центрируем таблицы внутри контейнера */
+    .container table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .container table th,
+    .container table td {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    /* Flex для ряда графиков */
+    .charts-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .charts-row > div {
+      text-align: center;
+    }
+
+    /* обёртка для центровки таблиц */
+    .table-center {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .table-center > table {
+      width: 100%;
+      max-width: 100%;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h1>Статистика {{ 'всех' if is_moderator else 'ваших' }} мероприятий</h1>
+
+    {% if is_moderator %}
+      <section>
+        <h2>Организаторы</h2>
+        <!-- Увеличенные графики организаторов вдвое -->
+        <canvas id="chart-orgs-views" width="2400" height="1200"></canvas>
+        <canvas id="chart-orgs-subs"  width="2400" height="1200" style="margin-top:40px;"></canvas>
+      </section>
+    {% endif %}
+
+    <section>
+      <h2>События</h2>
+      <div class="charts-row">
+        <div>
+          <h3>Просмотры / Подписки / Избранное</h3>
+          <canvas id="chart-events-bar" width="1200" height="600"></canvas>
+        </div>
+        <div>
+          <h3>Статусы подписок</h3>
+          <canvas id="chart-events-status" width="1200" height="600"></canvas>
+        </div>
+      </div>
+      <div style="margin-top:40px; text-align:center;">
+        <h3>Отзывы (Одобрено vs В ожидании)</h3>
+        <canvas id="chart-events-reviews" width="1200" height="600"></canvas>
+      </div>
+    </section>
+
+    <section style="margin-top:60px;">
+      <h2>Таблица: События</h2>
+      <div class="table-center">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Название</th><th>Дата</th>
+              <th>Просмотров</th>
+              <th>Записались</th><th>В процессе</th><th>Посетили</th><th>Не пришли</th>
+              <th>Избранное</th>
+              <th>Отзывы (всего/одобр./ожид.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in analytics_events %}
+            <tr>
+              <td>{{ ev.id }}</td>
+              <td>{{ ev.title }}</td>
+              <td>{{ ev.date.strftime('%Y-%m-%d') }}</td>
+              <td>{{ ev.view_count }}</td>
+              <td>{{ ev.registered }}</td>
+              <td>{{ ev.in_progress }}</td>
+              <td>{{ ev.visited }}</td>
+              <td>{{ ev.no_show }}</td>
+              <td>{{ ev.favorite_count }}</td>
+              <td>{{ ev.total_reviews }} / {{ ev.approved_reviews }} / {{ ev.pending_reviews }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if is_moderator %}
+    <section style="margin-top:60px;">
+      <h2>Таблица: Организаторы</h2>
+      <div class="table-center">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Имя</th><th>Событий</th>
+              <th>Всего просмотров</th><th>Всего записей</th><th>Всего избранного</th>
+              <th>Отзывы (всего/одобр./ожид.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for org in analytics_orgs %}
+            <tr>
+              <td>{{ org.id }}</td>
+              <td>{{ org.name }}</td>
+              <td>{{ org.events_created }}</td>
+              <td>{{ org.total_views }}</td>
+              <td>{{ org.total_subscriptions }}</td>
+              <td>{{ org.total_favorites }}</td>
+              <td>{{ org.total_reviews }} / {{ org.approved_reviews }} / {{ org.pending_reviews }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    const evData  = {{ analytics_events | tojson }};
+    const orgData = {{ analytics_orgs    | tojson }};
+
+    {% if is_moderator %}
+      new Chart(
+        document.getElementById('chart-orgs-views').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: orgData.map(o => o.name),
+            datasets: [{ label: 'Просмотры', data: orgData.map(o => o.total_views) }]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
+        }
+      );
+      new Chart(
+        document.getElementById('chart-orgs-subs').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: orgData.map(o => o.name),
+            datasets: [{ label: 'Записались на события', data: orgData.map(o => o.total_subscriptions) }]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
+        }
+      );
+    {% endif %}
+
+    new Chart(
+      document.getElementById('chart-events-bar').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: evData.map(e => e.title),
+          datasets: [
+            { label: 'Просмотров',   data: evData.map(e => e.view_count) },
+            { label: 'Записались',    data: evData.map(e => e.subscription_count) },
+            { label: 'В избранное',   data: evData.map(e => e.favorite_count) }
+          ]
+        },
+        options: { indexAxis: 'x', scales: { y: { beginAtZero: true } } }
+      }
+    );
+
+    new Chart(
+      document.getElementById('chart-events-status').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: evData.map(e => e.title),
+          datasets: [
+            { label: 'Зарегистрировались', data: evData.map(e => e.registered) },
+            { label: 'В процессе',         data: evData.map(e => e.in_progress) },
+            { label: 'Посетили',           data: evData.map(e => e.visited) },
+            { label: 'Не пришли',          data: evData.map(e => e.no_show) }
+          ]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { position: 'bottom' } }
+        }
+      }
+    );
+
+    new Chart(
+      document.getElementById('chart-events-reviews').getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: ['Одобрено', 'В ожидании'],
+          datasets: [{
+            data: [
+              evData.reduce((sum, e) => sum + e.approved_reviews, 0),
+              evData.reduce((sum, e) => sum + e.pending_reviews, 0)
+            ]
+          }]
+        }
+      }
+    );
+  </script>
+{% endblock %}

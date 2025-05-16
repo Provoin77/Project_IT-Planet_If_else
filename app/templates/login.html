@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="auth-container login">
+  <h2>Вход</h2>
+  <form method="post" class="auth-form">
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <div>
+      <label for="email">Email:</label>
+      <input type="email" name="email" id="email" required>
+    </div>
+    <div>
+      <label for="password">Пароль:</label>
+      <input type="password" name="password" id="password" required>
+    </div>
+    <div class="button-row">
+      <button type="submit">Войти</button>
+    </div>
+    
+    <div class="text-center mt-2">
+      <a href="{{ url_for('auth_email.reset_password_email') }}">Забыли пароль?</a>
+    </div>
+
+  </form>
+
+  <div style="text-align:center; margin: 20px 0; color: #666;">или</div>
+
+  <a href="{{ url_for('auth_telegram.login_telegram') }}" class="btn btn-telegram">
+  Войти через Telegram
+</a>
+
+</div>
+{% endblock %}

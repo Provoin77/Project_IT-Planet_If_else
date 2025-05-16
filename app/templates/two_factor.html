@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="auth-container">
+  <h2>Введите код из Telegram</h2>
+  <form method="post">
+    <input type="text" name="code" placeholder="Код 6 цифр" required autofocus>
+    <button type="submit">Подтвердить</button>
+  </form>
+</div>
+{% endblock %}

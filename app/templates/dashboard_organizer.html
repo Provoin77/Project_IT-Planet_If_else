@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Мои мероприятия</h2>
+  <p>Организатор: <strong>{{ current_user.username }}</strong> ({{ current_user.email }})</p>
+  <p><a href="{{ url_for('organizer_profile') }}">Основная информация</a></p>
+  
+  {% if not current_user.org_approved %}
+    <p style="color: red;">
+      Ваша заявка на регистрацию организатора находится на рассмотрении модератора. 
+      После одобрения вы сможете создавать мероприятия.
+    </p>
+  {% else %}
+    <p><a href="{{ url_for('create_event') }}">+ Создать новое мероприятие</a></p>
+  {% endif %}
+  
+  <p>
+    {% if current_user.org_approved %}
+      <a href="{{ url_for('manage_event_types') }}">Управление типами мероприятий</a> | 
+      <a href="{{ url_for('manage_event_spheres') }}">Управление сферами мероприятий</a> |
+
+    {% else %}
+      <span style="color: red;">
+        Вы сможете редактировать типы и сферы мероприятий после одобрения модератора.
+      </span>
+    {% endif %}
+  </p>
+
+  <div id="filter-form" style="margin:20px 0;">
+    <input type="text" id="filter-title" placeholder="Поиск по названию" style="margin-right:10px;">
+    <input type="date" id="filter-date" style="margin-right:10px;">
+    <select id="filter-status">
+      <option value="">Все статусы</option>
+      <option value="на модерации">На модерации</option>
+      <option value="предстоит">Предстоит</option>
+      <option value="проходит">Проходит</option>
+      <option value="прошло">Прошло</option>
+    </select>
+  </div>
+
+  {% macro render_table(title, events) %}
+    {% if events and events|length > 0 %}
+      <h3>{{ title }}</h3>
+      <table class="moderation-table my-events" border="1" cellspacing="0" cellpadding="5">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Дата и время</th>
+            <th>Статус</th>
+            <th>Участники</th>
+            <th class="actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for ev in events %}
+          <tr>
+            <td><a href="{{ url_for('view_event', event_id=ev.id) }}">{{ ev.title }}</a></td>
+            <td>{{ ev.date.strftime("%d.%m.%Y %H:%M") }}</td>
+            <td>{{ ev.filtered_status|capitalize }}</td>
+            <td>{{ ev.subscriptions|length }}</td>
+            <td class="actions">
+              <a href="{{ url_for('organizer_event_participants', event_id=ev.id) }}">
+                <button type="button">Участники</button>
+              </a>
+              {% if ev.is_approved %}
+                <button type="button"
+                        class="btn-stats"
+                        data-event-id="{{ ev.id }}">
+                  Статистика
+                </button>
+              {% endif %}
+              {% if title != 'Текущие мероприятия' %}
+                <form method="get" action="{{ url_for('edit_event', event_id=ev.id) }}" style="display:inline;">
+                  <button type="submit">Редактировать</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endmacro %}
+
+  {{ render_table('Мероприятия на модерации', moderation) }}
+  {{ render_table('Предстоящие мероприятия', upcoming) }}
+  {{ render_table('Текущие мероприятия', current) }}
+  {{ render_table('Прошедшие мероприятия', past) }}
+
+  {% if not moderation and not upcoming and not current and not past %}
+    <p>Вы ещё не создали ни одного мероприятия.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    // Фильтрация таблиц
+    function filterOrganizerEvents() {
+      var ft = document.getElementById('filter-title').value.toLowerCase();
+      var fd = document.getElementById('filter-date').value;
+      var fs = document.getElementById('filter-status').value.toLowerCase();
+      document.querySelectorAll('.my-events tbody').forEach(function(tbody){
+        Array.from(tbody.rows).forEach(function(row){
+          var title = row.cells[0].innerText.toLowerCase();
+          var dtRaw = row.cells[1].innerText.split(' ')[0];
+          var parts = dtRaw.split('.');
+          var rowDate = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+          var status = row.cells[2].innerText.toLowerCase();
+          var ok = true;
+          if (ft && title.indexOf(ft) === -1) ok = false;
+          if (fd && rowDate !== fd) ok = false;
+          if (fs && status !== fs) ok = false;
+          row.style.display = ok ? '' : 'none';
+        });
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('filter-title').addEventListener('input', filterOrganizerEvents);
+      document.getElementById('filter-date').addEventListener('change', filterOrganizerEvents);
+      document.getElementById('filter-status').addEventListener('change', filterOrganizerEvents);
+
+      // Статистика
+      document.querySelectorAll('.btn-stats').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const eventId = btn.dataset.eventId;
+          const modal   = document.getElementById('stats-modal');
+          document.getElementById('stats-title').innerText   = btn.closest('tr').cells[0].innerText;
+          document.getElementById('stats-content').innerHTML = '<p>Загрузка…</p>';
+          modal.style.display = 'flex';
+
+          fetch(`/organizer/events/${eventId}/stats.json`)
+            .then(res=>res.json())
+            .then(data=>{
+              const sb = data.subscriptions;
+              const rv = data.reviews;
+              const html = `
+                <ul>
+                  <li><strong>«Я приду» (всего):</strong> ${sb.total}</li>
+                  <li style="margin-left:10px;">
+                    – зарегистрированы: ${sb.by_status.registered},
+                    в процессе: ${sb.by_status.in_progress},
+                    посетили: ${sb.by_status.visited},
+                    не пришли: ${sb.by_status.no_show}
+                  </li>
+                  <li><strong>Добавили в избранное:</strong> ${data.favorites}</li>
+                  <li><strong>Отзывы:</strong> всего ${rv.total},
+                    одобрено ${rv.approved}, в ожидании ${rv.pending}
+                  </li>
+                </ul>`;
+              document.getElementById('stats-content').innerHTML = html;
+            })
+            .catch(err=>{
+              document.getElementById('stats-content').innerHTML =
+                '<p style="color:red;">Ошибка загрузки статистики.</p>';
+              console.error(err);
+            });
+        });
+      });
+
+      // Закрыть модалку
+      document.getElementById('stats-close').addEventListener('click', ()=>{
+        document.getElementById('stats-modal').style.display = 'none';
+      });
+    });
+  </script>
+
+  <!-- Модальное окно статистики -->
+  <div id="stats-modal" style="
+       display:none; position:fixed; top:0; left:0;
+       width:100%; height:100%; background:rgba(0,0,0,0.5);
+       align-items:center; justify-content:center; z-index:1000;
+     ">
+    <div style="
+         background:#fff; padding:20px; border-radius:4px;
+         width:400px; max-width:90%;
+       ">
+      <h3>Статистика: <span id="stats-title"></span></h3>
+      <div id="stats-content">
+        <p>Загрузка…</p>
+      </div>
+      <div style="text-align:right; margin-top:10px;">
+        <button id="stats-close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}

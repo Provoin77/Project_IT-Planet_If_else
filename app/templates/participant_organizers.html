@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-4">
+  <h2 class="mb-4">Организаторы</h2>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th scope="col">Организация</th>
+          <th scope="col">Сфера деятельности</th>
+          <th scope="col" class="text-center">Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org in organizers %}
+        <tr>
+          <!-- Название с ссылкой на карточку организатора -->
+          <td>
+            <a href="{{ url_for('view_organizer', user_id=org.id) }}">
+              {{ org.org_name }}
+            </a>
+          </td>
+
+          <!-- Сфера организатора -->
+          <td>{{ org.org_sphere or '—' }}</td>
+
+          <!-- Кнопка подписки/отписки -->
+          <td class="text-center">
+            {% if org.id in subs %}
+              <button
+                class="btn btn-sm btn-outline-danger"
+                onclick="toggleOrgSub({{ org.id }}, false)">
+                Отписаться
+              </button>
+            {% else %}
+              <button
+                class="btn btn-sm btn-outline-primary"
+                onclick="toggleOrgSub({{ org.id }}, true)">
+                Подписаться
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="text-center text-muted">
+            Пока нет одобренных организаторов.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Функция для AJAX-подписки/отписки
+function toggleOrgSub(orgId, subscribe) {
+  fetch(`/participant/organizers/${orgId}/${subscribe ? 'subscribe' : 'unsubscribe'}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+    }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Ошибка сети');
+    return res.json();
+  })
+  .then(data => {
+    // Можно при желании показать toast, а потом:
+    location.reload();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Не удалось выполнить операцию. Попробуйте снова.');
+  });
+}
+</script>
+{% endblock %}

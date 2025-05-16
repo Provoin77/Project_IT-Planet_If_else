@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-container register">
+  <h2>Регистрация</h2>
+  <form method="post" class="auth-form" enctype="multipart/form-data">
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <!-- Поля для участника -->
+    <div id="participant_fields" style="display: none;">
+      <div>
+        <label for="username">Имя пользователя:</label>
+        <input type="text" name="username" id="username">
+      </div>
+      <div>
+        <label for="full_name">Ваше имя:</label>
+        <input type="text" name="full_name" id="full_name">
+      </div>
+    </div>
+
+    <div>
+      <label for="email">Email:</label>
+      <input type="email" name="email" id="email" required>
+    </div>
+    <div>
+      <label for="password">Пароль:</label>
+      <input type="password" name="password" id="password" required>
+    </div>
+    <div>
+      <label for="confirm_password">Повтор пароля:</label>
+      <input type="password" name="confirm_password" id="confirm_password" required>
+    </div>
+    <div>
+      <label for="role">Роль:</label>
+      <select name="role" id="role" onchange="toggleRoleFields()">
+        <option value="participant">Участник</option>
+        <option value="organizer">Организатор</option>
+      </select>
+    </div>
+
+    <!-- Поля для организатора -->
+    <div id="organizer_fields" style="display: none;">
+      <div>
+        <label for="org_name">Организация:</label>
+        <input type="text" name="org_name" id="org_name">
+      </div>
+      <div>
+        <label for="org_description">Описание:</label>
+        <textarea name="org_description" id="org_description"></textarea>
+      </div>
+      <div>
+        <label for="org_sphere">Сфера:</label>
+        <input type="text" name="org_sphere" id="org_sphere">
+      </div>
+      <div>
+        <label for="org_phone">Телефон:</label>
+        <input type="text" name="org_phone" id="org_phone">
+      </div>
+      <div>
+        <label for="accreditation_image">Аккредитация:</label>
+        <input type="file" name="accreditation_image" id="accreditation_image" accept="image/*">
+      </div>
+    </div>
+
+    <div class="button-row">
+      <label></label>
+      <button type="submit">Зарегистрироваться</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function toggleRoleFields() {
+    var role = document.getElementById("role").value;
+    document.getElementById("participant_fields").style.display =
+      role === "participant" ? "block" : "none";
+    document.getElementById("organizer_fields").style.display =
+      role === "organizer" ? "block" : "none";
+  }
+  document.addEventListener("DOMContentLoaded", toggleRoleFields);
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Platform</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+  {% block head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}">Главная</a>
+    {% if current_user and current_user.role=='participant' %}
+         <a href="{{ url_for('participant_organizers') }}">Организаторы</a>
+    {% endif %}
+
+    {% if current_user %}
+      {% if current_user.role == 'organizer' %}
+        {% if current_user.org_approved %}
+          <a href="{{ url_for('create_event') }}">Создать мероприятие</a>
+        {% else %}
+          <span style="color: red;">Ожидается подтверждение вашей заявки.</span>
+        {% endif %}
+      {% endif %}
+
+      {% if current_user.role == 'moderator' %}
+        <a href="{{ url_for('dashboard') }}">Модерация</a>
+      {% else %}
+        <a href="{{ url_for('dashboard') }}">Личный кабинет</a>
+      {% endif %}
+         {% if current_user and current_user.role=='participant' %}
+         <a href="{{ url_for('dashboard_recommendations') }}">Рекомендации</a>
+            {% endif %}
+        {# Добавляем ссылку на статистику для организаторов и модераторов #}
+     {% if current_user.role in ['organizer', 'moderator'] %}
+      <a href="{{ url_for('analytics') }}">Статистика</a>
+     {% endif %}
+        <a href="{{ url_for('past_events') }}">Прошедшие события</a>
+      <a href="{{ url_for('logout') }}">Выйти</a>
+
+
+      <button id="notifications-toggle" aria-label="Уведомления">
+        🔔<span id="notifications-count"></span>
+      </button>
+    {% else %}
+      <a href="{{ url_for('login') }}">Войти</a>
+      <a href="{{ url_for('register') }}">Регистрация</a>
+    {% endif %}
+  </nav>
+
+  <!-- Панель уведомлений -->
+  <div id="notifications-panel">
+    <div class="panel-header">
+      <h3>Уведомления</h3>
+      <button id="notifications-close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="panel-body">
+      <ul id="notifications-list"></ul>
+      <button id="notifications-clear-all">Очистить всё</button>
+    </div>
+  </div>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, message in messages %}
+            <li class="{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+
+  {% block scripts %}
+    <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+  {% endblock %}
+
+</body>
+</html>

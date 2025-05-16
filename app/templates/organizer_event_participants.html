@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Участники события «{{ event.title }}»</h2>
+  <p><a href="{{ url_for('dashboard') }}">← Назад в «Мои мероприятия»</a></p>
+
+  <!-- Фильтрация -->
+  <div style="margin:20px 0;">
+    <input type="text"
+           id="filter-user"
+           placeholder="Поиск по имени, email или Telegram"
+           style="margin-right:10px; width:28%;">
+    <select id="filter-status">
+      <option value="">Все статусы</option>
+      <option value="visited">Принял участие</option>
+      <option value="no_show">Не пришёл</option>
+    </select>
+  </div>
+
+  <table id="participants-table" border="1" cellpadding="5">
+    <thead>
+      <tr>
+        <th>Имя</th>
+        <th>Логин</th>
+        <th>Email</th>
+        <th>Telegram</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in participants %}
+      <tr>
+        <td>{{ p.full_name }}</td>
+        <td>{{ p.username }}</td>
+        <td>{{ p.email }}</td>
+        <td>{{ p.telegram }}</td>
+        <td>
+          {% if p.status=='registered' %}Собирается посетить
+          {% elif p.status=='in_progress' %}Проходит
+          {% elif p.status=='visited' %}Принял участие
+          {% elif p.status=='no_show' %}Не пришёл
+          {% endif %}
+          {% if p.status=='registered' %}
+            <button class="btn btn-sm btn-outline-warning js-add-person"
+                    data-event="{{ event.id }}"
+                    data-username="{{ p.username }}">
+              ⭑ Персоналия
+            </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Модальное окно -->
+  <div id="person-modal" class="modal" tabindex="-1" style="display:none;">
+    <div class="modal-dialog">
+      <form id="person-form" class="modal-content">
+        <input type="hidden" name="event_id" id="person-event-id">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить / Редактировать персоналию</h5>
+          <button type="button" class="btn-close js-close-modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Имя</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Описание</label>
+            <textarea name="description" class="form-control"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary js-close-modal">Отмена</button>
+          <button type="submit" class="btn btn-primary">Подтвердить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      // --- фильтрация таблицы ---
+      const rows = document.querySelectorAll('#participants-table tbody tr');
+      const inp  = document.getElementById('filter-user');
+      const sel  = document.getElementById('filter-status');
+      inp.addEventListener('input', filterTable);
+      sel.addEventListener('change', filterTable);
+      function filterTable(){
+        const q = inp.value.trim().toLowerCase();
+        const s = sel.value;
+        const mapSt = { visited:'принял участие', no_show:'не пришёл' };
+        rows.forEach(r=>{
+          let ok = true;
+          const cells = Array.from(r.cells).map(c=>c.innerText.trim().toLowerCase());
+          const [name,login,email,telegram,status] = cells;
+          if (q && !(name+login+email+telegram).includes(q)) ok = false;
+          if (s && !status.includes(mapSt[s])) ok = false;
+          r.style.display = ok ? '' : 'none';
+        });
+      }
+
+      // --- работа с модалкой ---
+      const modal      = document.getElementById('person-modal');
+      const form       = document.getElementById('person-form');
+      const fldEventId = document.getElementById('person-event-id');
+      const fldName    = form.elements['name'];
+      const fldDesc    = form.elements['description'];
+
+      // открыть: при клике «Персоналия»
+      document.querySelectorAll('.js-add-person').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const evId = btn.dataset.event;
+          fldEventId.value = evId;
+          // GET существующую персоналию, если есть
+          const res = await fetch(`/organizer/events/${evId}/personality`);
+          if (res.ok){
+            const js = await res.json();
+            if (js.success){
+              fldName.value = js.name;
+              fldDesc.value = js.description;
+            } else {
+              fldName.value = '';
+              fldDesc.value = '';
+            }
+          }
+          modal.style.display = 'block';
+        });
+      });
+
+      // закрыть
+      document.querySelectorAll('.js-close-modal').forEach(btn=>{
+        btn.addEventListener('click', ()=> modal.style.display = 'none');
+      });
+
+      // отправка формы
+      form.addEventListener('submit', async e=>{
+        e.preventDefault();
+        const fd = new FormData(form);
+        const id = fd.get('event_id');
+        const res = await fetch(`/organizer/events/${id}/add_personality`, {
+          method:'POST', body: fd
+        });
+        const js = await res.json();
+        if (js.success){
+          alert(`Сохранено: ${js.name}`);
+          location.reload();
+        } else {
+          alert(js.error||'Ошибка');
+        }
+      });
+    });
+  </script>
+  <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+{% endblock %}
