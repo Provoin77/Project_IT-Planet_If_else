@@ -27,9 +27,8 @@ EXPOSE 80
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_DEBUG=1
 
-# Запуск: ждем PostgreSQL и стартуем Flask
+# Запуск: ждём базу по DB_HOST:DB_PORT, экспортим DATABASE_URL и стартуем Flask
 CMD ["sh", "-c", "\
-  HOST=$(echo $DATABASE_URL | sed -E 's|.*@([^:]+):.*|\\1|') && \
-  PORT_DB=$(echo $DATABASE_URL | sed -E 's|.*:([0-9]+)/.*|\\1|') && \
-  ./wait-for-it.sh $HOST:$PORT_DB --timeout=120 --strict -- \
+  export DATABASE_URL=\"postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME\" && \
+  ./wait-for-it.sh $DB_HOST:$DB_PORT --timeout=120 --strict -- \
   python run.py"]
